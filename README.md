@@ -3,7 +3,7 @@
 # sd-policetape
 
 <a href="https://fivem.samueldev.shop">
-  <img width="960" alt="sd-policetape banner: Police tape for FiveM, with a taped-off driveway, the posts and cones and the admin menu" src="docs/previews/sd-policetape-banner.webp">
+  <img width="960" alt="sd-policetape banner: Police tape for FiveM, with a taped-off driveway, the posts and cones, the style picker and five tape styles across it" src="docs/previews/sd-policetape-banner.webp">
 </a>
 
 ---

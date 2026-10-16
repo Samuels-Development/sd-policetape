@@ -110,8 +110,16 @@ function grid(): HTMLDivElement {
   return el('div', 'position:absolute;inset:0;background-image:linear-gradient(rgba(255,255,255,0.028) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,0.028) 1px,transparent 1px);background-size:48px 48px');
 }
 
+const CARD = 'border-radius:14px;overflow:hidden;border:1px solid rgba(255,255,255,0.14);box-shadow:0 30px 70px rgba(0,0,0,0.6)';
+
 function card(src: string, css: string): HTMLDivElement {
-  return el('div', `position:absolute;${css};border-radius:14px;overflow:hidden;border:1px solid rgba(255,255,255,0.14);box-shadow:0 30px 70px rgba(0,0,0,0.6);background:#000 url("${src}") center/cover no-repeat`);
+  return el('div', `position:absolute;${css};${CARD};background:#000 url("${src}") center/cover no-repeat`);
+}
+
+/** A card of one part of a 1920 x 1080 screenshot, [x, y, w, h], shown `width` px wide. */
+function cropCard(src: string, [x, y, w, h]: number[], left: number, top: number, width: number): HTMLDivElement {
+  const s = width / w;
+  return el('div', `position:absolute;left:${left}px;top:${top}px;width:${width}px;height:${Math.round(h * s)}px;${CARD};background:#000 url("${src}") ${-x * s}px ${-y * s}px/${1920 * s}px auto no-repeat`);
 }
 
 // -- banner ---------------------------------------------------------------------------------------
@@ -120,12 +128,22 @@ async function banner(): Promise<void> {
   a.append(grid());
   a.append(el('div', 'position:absolute;inset:0;background:radial-gradient(1100px 700px at 78% 40%,rgba(246,209,14,0.07),transparent 70%)'));
 
-  // The right: a scene, the holder menu and the admin menu, with tape across the corner.
-  a.append(card(ingame('scene'), 'left:1060px;top:58px;width:800px;height:450px'));
-  a.append(card(adminShot('holders'), 'left:1010px;top:392px;width:440px;height:356px'));
-  a.append(card(ingame('placing'), 'left:1370px;top:466px;width:500px;height:281px'));
-  a.append(await laid(byId.get('police_line_bold')!, 1500, 62, -14, 'left:1040px;top:610px'));
-  a.append(await laid(byId.get('crime_scene')!, 1300, 54, 9, 'left:1080px;top:-6px'));
+  // The right: a scene, the cones in the admin menu, placing, and the style picker's tapes, with
+  // tape across the corner. The picker is its panel cut out of the in-game screenshot.
+  a.append(card(ingame('scene'), 'left:1010px;top:58px;width:720px;height:405px'));
+  a.append(card(adminShot('holders'), 'left:1000px;top:392px;width:420px;height:340px'));
+  a.append(card(ingame('placing'), 'left:1330px;top:470px;width:440px;height:248px'));
+  a.append(cropCard(ingame('picker'), [1511, 32, 394, 1032], 1652, 96, 240));
+  // Tape crossed over the corners, a few styles, the way it goes up at a scene: [id, length,
+  // height, angle, position before turning (about its centre)].
+  const tapes: [string, number, number, number, string][] = [
+    ['crime_scene', 1300, 54, 9, 'left:1080px;top:-6px'],
+    ['lspd_line', 900, 46, 34, 'left:1350px;top:37px'],
+    ['de_polizei', 1300, 48, -7, 'left:1000px;top:764px'],
+    ['police_line_bold', 1500, 62, -14, 'left:1040px;top:610px'],
+    ['lsfd_line', 1000, 50, -46, 'left:1260px;top:695px'],
+  ];
+  for (const [id, w, h, angle, css] of tapes) a.append(await laid(byId.get(id)!, w, h, angle, css));
 
   const left = el('div', 'position:absolute;left:96px;top:66px;width:820px');
   const logo = el('div', 'display:flex;align-items:center;gap:22px');
