@@ -1,5 +1,9 @@
 web/node_modules/
 
+# The built UI. Each release builds it into its zip (.github/workflows/release.yml); to run a
+# clone, `npm run build` in web/.
+web/build/
+
 # Written by the resource while it runs (tape on the server, Tape Studio styles): server data,
 # with player identifiers. The folder itself must exist (data/README.md keeps it).
 data/*.json

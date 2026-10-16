@@ -34,7 +34,10 @@ end
 ---Best-effort — never errors out a live server.
 ---@param repo string GitHub repo in `owner/name` form.
 function version.check(repo)
-    local resource = GetInvokingResource() or GetCurrentResourceName()
+    -- Always this resource: the module is `require`d, never exported, so
+    -- GetInvokingResource() would name whatever triggered the current start
+    -- (txAdmin's `monitor`, another script's restart) rather than us.
+    local resource = GetCurrentResourceName()
     dprint('check: invoked for resource=%s repo=%s', tostring(resource), tostring(repo))
 
     local raw = GetResourceMetadata(resource, 'version', 0)

@@ -1,0 +1,95 @@
+name: Release
+
+# Fires when a GitHub Release is published (Releases > Draft a new release > Publish).
+# Builds the NUI fresh and attaches a lean, drop-in resource zip to that release.
+on:
+  release:
+    types: [published]
+  # Re-package an already published release without unpublishing it, for when the
+  # packaging itself was wrong rather than the code.
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Existing tag to package (e.g. v1.0.0)'
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  package:
+    name: build + package
+    runs-on: ubuntu-latest
+    env:
+      TAG: ${{ github.event.release.tag_name || inputs.tag }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.release.tag_name || inputs.tag }}
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Build NUI
+        working-directory: web
+        run: |
+          npm ci
+          npm run build
+
+      # Explicit allowlist of runtime files -> dist/sd-policetape/ so the zip extracts
+      # to a correctly named resource folder. web/src, node_modules, dev configs, tools/,
+      # tests/ and the README screenshots (docs/previews) are intentionally left out.
+      # images/ has the item's and the holder menu's pictures; data/ is where the server
+      # keeps tape, styles and settings, and has to exist for it to write there.
+      - name: Stage resource
+        run: |
+          mkdir -p dist/sd-policetape/web dist/sd-policetape/data
+          cp fxmanifest.lua README.md dist/sd-policetape/
+          cp -r bridge client server shared configs locales images stream dist/sd-policetape/
+          cp data/README.md dist/sd-policetape/data/
+          cp -r web/build dist/sd-policetape/web/build
+
+      # The staging list above is an allowlist, so a new top-level directory is
+      # dropped from the zip in silence. Every path fxmanifest.lua declares has to be
+      # in the staged resource, or the build fails here instead of on a server.
+      - name: Verify staged resource
+        run: |
+          missing=0
+          paths=$(grep -oE "'[^']+\.(lua|json|html|js|css|png|jpg|webp|svg|woff2?|mp3|ytyp)'" fxmanifest.lua \
+            | tr -d "'" | grep -v '^@' | sed 's|/\*\*.*||; s|/\*.*||' | sort -u)
+          for p in $paths; do
+            if [ ! -e "dist/sd-policetape/$p" ]; then
+              echo "::error::fxmanifest.lua declares '$p' but it is not in the staged resource"
+              missing=1
+            fi
+          done
+          # configs/server and configs/styles.lua are read with require() on the server only,
+          # so the manifest never names them; data/ is written to, never declared.
+          for p in configs/server configs/styles.lua data images/police_tape.png; do
+            if [ ! -e "dist/sd-policetape/$p" ]; then
+              echo "::error::$p is not in the staged resource"
+              missing=1
+            fi
+          done
+          if [ "$missing" != 0 ]; then
+            echo "Staged resource is incomplete - add the missing path to the Stage resource step."
+            exit 1
+          fi
+          echo "All fxmanifest paths present:"
+          echo "$paths"
+
+      # Named without the tag so the download URL and the extracted folder read the
+      # same on every release, and a linked install guide never points at a stale
+      # filename. The release itself carries the version.
+      - name: Zip
+        run: |
+          cd dist
+          zip -qr ../sd-policetape.zip sd-policetape
+
+      - name: Attach to release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "${TAG}" sd-policetape.zip --clobber

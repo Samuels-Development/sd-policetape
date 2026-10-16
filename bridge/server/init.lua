@@ -32,4 +32,4 @@ print(('^2[SD-POLICETAPE]^0 Bridge initialised — Framework: ^3%s^0, Inventory:
 -- Best-effort check of our latest GitHub release against the installed version;
 -- prints an up-to-date / update-available line to the server console. Async and
 -- non-fatal, so it never blocks or breaks server boot.
-version.check('sd-versions/sd-policetape')
+version.check('Samuels-Development/sd-policetape')

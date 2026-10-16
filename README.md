@@ -21,7 +21,7 @@ Admins see every tape on the server in `/tapeadmin`, choose which styles and con
 ![Inventory](https://img.shields.io/badge/Inventory-ox%20%7C%20qb%20%7C%20qs%20%7C%20tgiann%20%7C%20codem%20%7C%20and%20more-3b82f6)
 ![Needs](https://img.shields.io/badge/Needs-ox__lib-3b82f6)
 
-[**Store**](https://fivem.samueldev.shop) · [**Discord**](https://discord.gg/FzPehMQaBQ)
+[**Download**](https://github.com/Samuels-Development/sd-policetape/releases/latest) · [**Store**](https://fivem.samueldev.shop) · [**Discord**](https://discord.gg/FzPehMQaBQ)
 
 </div>
 
@@ -166,12 +166,14 @@ A knocked-over post or cone works the same way: the prompt, then hold <kbd>E</kb
 
 ## Installation
 
-Download or clone this repository into your resources (the UI is already built in `web/build`) and start it after ox_lib and your framework:
+Download **`sd-policetape.zip`** from the [latest release](https://github.com/Samuels-Development/sd-policetape/releases/latest) and unzip it into your resources folder: it is the resource with its UI already built, ready to drop in. Start it after ox_lib and your framework:
 
 ```cfg
 ensure ox_lib
 ensure sd-policetape
 ```
+
+> Download the `sd-policetape.zip` asset, not **Source code (zip)** or the green **Code** button. Those are the source, without the built UI: the tape would have no print and the menus would not open until you [build it yourself](#building-from-source).
 
 The roll of tape is optional (`Config.Item`). For ox_inventory, add it to `data/items.lua` and copy [`images/police_tape.png`](images/police_tape.png) into `web/images/`:
 
@@ -220,7 +222,7 @@ exports['sd-policetape']:IsPlacing() / GetLookedAtTape()
 
 ## Building from source
 
-The UI ships built in `web/build`. To change it, with Node.js (LTS):
+The repository is the source: the built UI (`web/build`) is not committed, and each [release](https://github.com/Samuels-Development/sd-policetape/releases) builds it into its zip. To run a clone, or to change the UI, build it with Node.js (LTS):
 
 ```bash
 cd web
@@ -228,4 +230,4 @@ npm install
 npm run build
 ```
 
-`npm run dev` opens the pages in a browser with the 100 styles: `ui.html#picker`, `#holders`, `#studio`, `#admin`, `#place` and `#look`. `readme.html#banner`, `#hero`, `#styles-<category>` and `#holders` draw this README's pictures. The models and the cone pictures are made by `tools/` in Blender.
+A source ZIP unpacks to `sd-policetape-main`: rename the folder to `sd-policetape`, the name its exports are called by. After changing the UI, run `npm run build` again; the game loads `web/build`, not the source. `npm run dev` opens the pages in a browser with the 100 styles: `ui.html#picker`, `#holders`, `#studio`, `#admin`, `#place` and `#look`. The models and the cone pictures are made by `tools/` in Blender.
