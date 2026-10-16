@@ -10,16 +10,33 @@ import { TapeStrip } from './TapeStrip';
 
 const ORDER = ['police', 'federal', 'crime', 'fire', 'ems', 'hazard', 'utility', 'plain', 'international', 'custom'];
 
+/** Who this player is to "Yours": the key their studio styles carry, and their name (older styles). */
+export interface Me {
+  key?: string | null;
+  name?: string | null;
+}
+
+/** Made in the Tape Studio, whatever category its maker filed it under. */
+const isCustom = (s: Style) => s.custom || s.category === 'custom';
+
+/** Made in the Tape Studio by this player: by key, or by name for a style saved before keys. */
+function isMine(s: Style, me: Me | null | undefined): boolean {
+  if (!me || !isCustom(s)) return false;
+  if (s.authorKey) return !!me.key && s.authorKey === me.key;
+  return !!s.author && !!me.name && s.author === me.name;
+}
+
 interface Props {
   styles: Style[];
   selected: string;
   canStudio: boolean;
+  me?: Me | null;
   onHover: (id: string) => void;
   onClose: () => void;
   onOpenStudio: () => void;
 }
 
-export function Picker({ styles, selected, canStudio, onHover, onClose, onOpenStudio }: Props) {
+export function Picker({ styles, selected, canStudio, me, onHover, onClose, onOpenStudio }: Props) {
   const t = useT();
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState('all');
@@ -32,22 +49,33 @@ export function Picker({ styles, selected, canStudio, onHover, onClose, onOpenSt
     list.current?.querySelector(`[data-id="${selected}"]`)?.scrollIntoView({ block: 'center' });
   }, [selected]);
 
+  // The chips: every category, then the Tape Studio's styles ("custom", across categories), then
+  // the ones this player made ("yours").
   const counts = useMemo(() => {
-    const c: Record<string, number> = { all: styles.length };
-    for (const s of styles) c[s.category] = (c[s.category] ?? 0) + 1;
+    const c: Record<string, number> = { all: styles.length, custom: 0, yours: 0 };
+    for (const s of styles) {
+      if (s.category !== 'custom') c[s.category] = (c[s.category] ?? 0) + 1;
+      if (isCustom(s)) c.custom += 1;
+      if (isMine(s, me)) c.yours += 1;
+    }
     return c;
-  }, [styles]);
-  const categories = useMemo(() => ORDER.filter((c) => counts[c]), [counts]);
+  }, [styles, me]);
+  const chips = useMemo(
+    () => ['all', ...ORDER.filter((c) => c !== 'custom' && counts[c]), ...(counts.custom ? ['custom'] : []), ...(counts.yours ? ['yours'] : [])],
+    [counts],
+  );
+  // custom and yours cut across categories, so their list keeps the category headings.
+  const spans = category === 'all' || category === 'custom' || category === 'yours';
 
   const shown = useMemo(() => {
     const q = query.trim().toLowerCase();
     return styles.filter((s) => {
-      if (category !== 'all' && s.category !== category) return false;
+      if (category === 'custom' ? !isCustom(s) : category === 'yours' ? !isMine(s, me) : category !== 'all' && s.category !== category) return false;
       if (!q) return true;
       const words = s.text ? s.text.items.join(' ') : '';
-      return `${s.label} ${s.region || ''} ${words} ${t(`categories.${s.category}`)}`.toLowerCase().includes(q);
+      return `${s.label} ${s.region || ''} ${s.author || ''} ${words} ${t(`categories.${s.category}`)}`.toLowerCase().includes(q);
     });
-  }, [styles, query, category, t]);
+  }, [styles, query, category, me, t]);
 
   const groups = useMemo(() => {
     const out: { cat: string; items: Style[] }[] = [];
@@ -110,6 +138,7 @@ export function Picker({ styles, selected, canStudio, onHover, onClose, onOpenSt
               <span className="sc-label shrink-0">
                 {t(`categories.${focus.category}`)}
                 {focus.region ? `, ${focus.region}` : ''}
+                {isCustom(focus) && focus.author ? ` · ${t('picker.by', { name: focus.author })}` : ''}
               </span>
             </div>
             <TapeStrip style={focus} height={30} className="sc-strip mt-2.5" />
@@ -125,9 +154,9 @@ export function Picker({ styles, selected, canStudio, onHover, onClose, onOpenSt
       </div>
 
       <div className="sc-chips border-b border-hairline px-4 pb-3 pt-3">
-        {['all', ...categories].map((c) => (
+        {chips.map((c) => (
           <button key={c} type="button" className="sc-chip" data-on={category === c} onClick={() => setCategory(c)}>
-            {t(`categories.${c}`)}
+            {t(c === 'yours' ? 'picker.yours' : `categories.${c}`)}
             <span className="sc-chip__count">{counts[c]}</span>
           </button>
         ))}
@@ -137,7 +166,7 @@ export function Picker({ styles, selected, canStudio, onHover, onClose, onOpenSt
         {groups.length === 0 && <p className="py-6 text-[13px] text-t3">{t('picker.empty', { query })}</p>}
         {groups.map((g) => (
           <section key={g.cat} className="mt-4">
-            {category === 'all' && (
+            {spans && (
               <h2 className="sc-heading mb-2">
                 {t(`categories.${g.cat}`)}
                 <span className="sc-heading__count">{g.items.length}</span>
@@ -160,7 +189,9 @@ export function Picker({ styles, selected, canStudio, onHover, onClose, onOpenSt
                       {s.label}
                       {s.id === selected && <span className="sc-status sc-status--ok" />}
                     </span>
-                    {s.region && <span className="sc-label">{s.region}</span>}
+                    {(s.region || (isCustom(s) && s.author)) && (
+                      <span className="sc-label shrink-0">{[s.region, isCustom(s) && s.author ? t('picker.by', { name: s.author }) : null].filter(Boolean).join(' · ')}</span>
+                    )}
                   </span>
                   <TapeStrip style={s} height={14} className="sc-strip mt-2" />
                 </button>

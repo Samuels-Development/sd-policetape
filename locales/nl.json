@@ -26,7 +26,10 @@
     "holder_unavailable": "Die paal of pion is niet beschikbaar.",
     "admin_invalid": "Dat lukte niet.",
     "admin_last_style": "Er moet minstens één lintstijl beschikbaar blijven.",
-    "admin_last_holder": "Er moet minstens één paal of pion beschikbaar blijven."
+    "admin_last_holder": "Er moet minstens één paal of pion beschikbaar blijven.",
+    "persist_off": "Op deze server kiezen spelers niet wat bewaard blijft.",
+    "kept": "Dit lint blijft na een herstart.",
+    "not_kept": "Dit lint verdwijnt bij de volgende herstart."
   },
   "ui": {
     "categories": {
@@ -69,7 +72,9 @@
       "stand_up": "Ingedrukt houden om rechtop te zetten",
       "edit_tape": "Lint bewerken",
       "stand_prompt": "Weer rechtzetten",
-      "close": "Sluiten"
+      "close": "Sluiten",
+      "kept": "Blijft na herstart",
+      "not_kept": "Weg na herstart"
     },
     "picker": {
       "title": "Lintstijlen",

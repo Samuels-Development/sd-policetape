@@ -9,6 +9,7 @@ local nui = {}
 local ready = false
 local queue = {}
 local styles, canStudio, offStyles = {}, false, {}
+local me = nil ---@type { key: string|nil, name: string|nil }|nil who this player is to the picker's "Yours"
 local picker = nil ---@type { choose: fun(id: string|nil), hover: fun(id: string)|nil }|nil
 local holders = nil ---@type { choose: fun(id: string|nil), hover: fun(id: string)|nil }|nil
 local studioOpen = false
@@ -41,7 +42,7 @@ end
 RegisterNUICallback('uiReady', function(_, cb)
     cb(1)
     ready = true
-    SendNUIMessage({ action = 'init', locale = uiWords(), styles = styles, canStudio = canStudio, off = offStyles })
+    SendNUIMessage({ action = 'init', locale = uiWords(), styles = styles, canStudio = canStudio, off = offStyles, me = me })
     for i = 1, #queue do SendNUIMessage(queue[i]) end
     queue = {}
 end)
@@ -60,6 +61,12 @@ function nui.setCanStudio(studio)
     if canStudio == (studio == true) then return end
     canStudio = studio == true
     send({ action = 'styles', styles = styles, canStudio = canStudio })
+end
+
+---Who this player is, so the picker can show the styles they made.
+function nui.setMe(who)
+    me = type(who) == 'table' and who or nil
+    send({ action = 'me', me = me })
 end
 
 ---The styles players cannot put up (the picker leaves them out).

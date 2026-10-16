@@ -121,7 +121,7 @@ export function StylesTab({ styles }: { styles: Style[] }) {
                         {s.custom && <Badge>{t('admin.styles.custom')}</Badge>}
                       </div>
                       <div className="mono mt-1 truncate text-[11.5px]" style={{ color: 'var(--text-4)' }}>
-                        {s.id}
+                        {s.custom && s.author ? `${s.id} · ${t('picker.by', { name: s.author })}` : s.id}
                       </div>
                     </div>
                     <Switch

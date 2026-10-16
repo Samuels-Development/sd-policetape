@@ -17,9 +17,14 @@
       category  police | federal | crime | fire | ems | hazard | utility | plain | international
       region    a country tag shown next to the name (GB, DE ...)
       base      background colour
-      pattern   { type = 'diagonal' | 'blocks' | 'checker' | 'chevron' | 'band' | 'dashes',
-                  color = '#rrggbb', size = 0.6 (in tape widths), angle = 45 (diagonal only) }
-      edges     { color = '#rrggbb', size = 0.08 }   a band along both edges, as a fraction of the width
+      base2     { color = '#rrggbb', mode = 'gradient' | 'split' }   a second background colour:
+                a gradient from top to bottom, or the tape split in two halves
+      pattern   { type = 'diagonal' | 'blocks' | 'checker' | 'chevron' | 'band' | 'dashes' | 'dots'
+                  | 'zigzag' | 'lines', color = '#rrggbb', size = 0.6 (in tape widths),
+                  angle = 45 (diagonal only), opacity = 1 (0.1..1),
+                  fill = 0.5 (how much of each period is printed, 0.15..0.85) }
+      edges     { color = '#rrggbb', size = 0.08, style = 'solid' | 'double' | 'dashed' | 'checker',
+                  inset = 0 (a gap from the tape's edge) }   a band along both edges, as a fraction of the width
       text      {
                   items     = { 'POLICE LINE', 'DO NOT CROSS' }   printed in turn along the tape
                   color     = '#rrggbb'
@@ -27,10 +32,15 @@
                   size      = 0.62   letter height as a fraction of the tape width
                   spacing   = 0.03   extra letter spacing (em)
                   italic    = false
-                  plate     = { color = '#rrggbb', padding = 0.25 }   a box behind each item
+                  altColor  = '#rrggbb'   every other item in this colour
+                  width     = 1      letters narrower (< 1) or wider (> 1), 0.6..1.5
+                  offset    = 0      up (-) or down (+) from the middle, -0.3..0.3 of the width
+                  plate     = { color = '#rrggbb', padding = 0.25, radius = 0 }   a box behind each item
                   outline   = { color = '#rrggbb', width = 0.08 }
+                  shadow    = { color = '#rrggbb', distance = 0.04 }   a drop shadow under the letters
                   separator = none | dot | star | bar | slash | diamond | cross | chevron
                   separatorColor = '#rrggbb'   (default: the text colour)
+                  separatorSize = 1   0.5..2
                   repeats   = 1      how many times the items appear per 1.2 m
                 }
 

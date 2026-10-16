@@ -1,7 +1,7 @@
 // Every tape on the server: what it is, who put it up, where, and when, with a waypoint to it, a
 // way to go there, and taking it down - one, every torn one, or all of them.
 import { useMemo, useState } from 'react';
-import { MapPin, Navigation, Scissors, Trash2 } from 'lucide-react';
+import { MapPin, Navigation, Pin, PinOff, Scissors, Trash2 } from 'lucide-react';
 import type { Style } from '../../paint/types';
 import { useT } from '../locale';
 import { TapeStrip } from '../TapeStrip';
@@ -23,6 +23,8 @@ export function TapesTab({ styles }: { styles: Style[] }) {
 
   const byId = useMemo(() => new Map(styles.map((s) => [s.id, s])), [styles]);
   const tapes = snapshot.tapes;
+  // Whether the server keeps tape over a restart at all (with it off, nothing is kept).
+  const saving = snapshot.toggles.find((tg) => tg.key === 'Persist')?.on !== false;
   const torn = tapes.filter((r) => r.torn).length;
 
   const shown = useMemo(() => {
@@ -75,7 +77,7 @@ export function TapesTab({ styles }: { styles: Style[] }) {
       ) : (
         <div className="sc-list flex-shrink-0">
           {shown.map((r) => (
-            <Row key={r.id} r={r} style={byId.get(r.style) ?? styles[0]} now={snapshot.now} busy={busy} />
+            <Row key={r.id} r={r} style={byId.get(r.style) ?? styles[0]} now={snapshot.now} busy={busy} saving={saving} />
           ))}
         </div>
       )}
@@ -96,8 +98,9 @@ export function TapesTab({ styles }: { styles: Style[] }) {
   );
 }
 
-function Row({ r, style, now, busy }: { r: TapeRow; style: Style | undefined; now: number; busy: boolean }) {
+function Row({ r, style, now, busy, saving }: { r: TapeRow; style: Style | undefined; now: number; busy: boolean; saving: boolean }) {
   const t = useT();
+  const kept = saving && r.persist !== false;
   const line = [`#${r.id}`, r.owner || t('admin.tapes.by_script'), t('admin.tapes.length', { length: r.length.toFixed(1) }), r.street, ago(t, r.created, now)].filter(Boolean);
   return (
     <div className="sc-row">
@@ -107,6 +110,7 @@ function Row({ r, style, now, busy }: { r: TapeRow; style: Style | undefined; no
           <span className="truncate text-[13px] font-medium">{r.label}</span>
           {r.torn && <Badge tone="danger">{t('admin.tapes.torn')}</Badge>}
           {r.down && <Badge tone="warn">{t('admin.tapes.down')}</Badge>}
+          {!kept && <Badge title={t(saving ? 'admin.tapes.not_kept_hint' : 'admin.tapes.saving_off_hint')}>{t('admin.tapes.not_kept')}</Badge>}
         </div>
         <div className="mono mt-1 truncate text-[11.5px]" style={{ color: 'var(--text-3)' }}>
           {line.join(' · ')}
@@ -132,6 +136,19 @@ function Row({ r, style, now, busy }: { r: TapeRow; style: Style | undefined; no
         </button>
         <button type="button" className="sc-btn sc-btn--icon" title={t('admin.tapes.teleport')} aria-label={t('admin.tapes.teleport')} onClick={() => teleport(r.id)}>
           <Navigation size={14} />
+        </button>
+        <button
+          type="button"
+          className="sc-btn sc-btn--icon"
+          title={t(r.persist !== false ? 'admin.tapes.dont_keep' : 'admin.tapes.keep')}
+          aria-label={t(r.persist !== false ? 'admin.tapes.dont_keep' : 'admin.tapes.keep')}
+          disabled={busy || !saving}
+          onClick={() => {
+            const on = r.persist === false;
+            void act('persist', { id: r.id, on }, t(on ? 'admin.tapes.toast_kept' : 'admin.tapes.toast_not_kept', { id: r.id }));
+          }}
+        >
+          {r.persist !== false ? <Pin size={14} /> : <PinOff size={14} />}
         </button>
         <button
           type="button"

@@ -51,6 +51,22 @@ RegisterKeyMapping('sdtape_restyle', 'Police tape: change style of the tape you 
 RegisterCommand('sdtape_restyle_pad', restyle, false)
 RegisterKeyMapping('sdtape_restyle_pad', 'Police tape: change style (controller)', 'PAD_DIGITALBUTTON', KEYS.PadRestyle)
 
+---Whether players may say per tape if it survives a restart (the admin menu can change both).
+local function choosing()
+    return config.Persist == true and config.PersistChoice ~= false
+end
+
+local function togglePersist()
+    if not edit or edit.kind ~= 'tape' or nui.busy() or place.active or not choosing() then return end
+    local tape = world.get(edit.id)
+    if tape then TriggerServerEvent('sd-policetape:server:persist', tape.id, not tape.persist) end
+end
+
+RegisterCommand('sdtape_persist', togglePersist, false)
+RegisterKeyMapping('sdtape_persist', 'Police tape: keep the tape you are editing after a restart, or not', 'keyboard', KEYS.Persist or 'F')
+RegisterCommand('sdtape_persist_pad', togglePersist, false)
+RegisterKeyMapping('sdtape_persist_pad', 'Police tape: keep it after a restart, or not (controller)', 'PAD_DIGITALBUTTON', KEYS.PadPersist or 'RUP_INDEX')
+
 ---The key a command is bound to right now, as the game would print it ("E", "G"), or the
 ---configured default when it cannot tell.
 local function boundKey(command, fallback)
@@ -63,7 +79,7 @@ local FRIENDLY = { LMENU = 'Alt', RMENU = 'Alt Gr', LCONTROL = 'Ctrl', LSHIFT = 
 
 local function keyName(command, default, padCommand, padDefault)
     if not IsUsingKeyboard(0) then
-        local pad = { LDOWN_INDEX = '↓', LLEFT_INDEX = '←', LUP_INDEX = '↑', LRIGHT_INDEX = '→' }
+        local pad = { LDOWN_INDEX = '↓', LLEFT_INDEX = '←', LUP_INDEX = '↑', LRIGHT_INDEX = '→', RUP_INDEX = 'Y', RDOWN_INDEX = 'A', RLEFT_INDEX = 'X', RRIGHT_INDEX = 'B' }
         return pad[padDefault] or padDefault
     end
     local k = boundKey(command, default)
@@ -166,17 +182,21 @@ CreateThread(function()
             if edit.kind == 'tape' then
                 local tp = world.get(edit.id)
                 local style = tp and state.style(tp.style)
+                local keys = {
+                    { k = keyName('sdtape_restyle', KEYS.Restyle, 'sdtape_restyle_pad', KEYS.PadRestyle), t = t('ui.hud.change_style') },
+                    { k = removeKey, t = t('ui.hud.take_down') },
+                }
+                if tp and choosing() then
+                    keys[#keys + 1] = { k = keyName('sdtape_persist', KEYS.Persist or 'F', 'sdtape_persist_pad', KEYS.PadPersist or 'RUP_INDEX'), t = tp.persist and t('ui.hud.kept') or t('ui.hud.not_kept') }
+                end
+                keys[#keys + 1] = { k = closeKey(), t = t('ui.hud.close') }
                 nui.hud({
                     mode = 'look',
                     styleId = tp and tp.style or state.defaultStyle(),
                     title = style and style.label or nil,
                     line = tp and tp.torn and t('ui.hud.torn') or nil,
                     lineKind = 'warn',
-                    keys = {
-                        { k = keyName('sdtape_restyle', KEYS.Restyle, 'sdtape_restyle_pad', KEYS.PadRestyle), t = t('ui.hud.change_style') },
-                        { k = removeKey, t = t('ui.hud.take_down') },
-                        { k = closeKey(), t = t('ui.hud.close') },
-                    },
+                    keys = keys,
                 })
             else
                 local tied = world.get(edit.id)

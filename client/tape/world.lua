@@ -48,6 +48,7 @@ world.params = P
 ---@field ap boolean a post stands under a
 ---@field bp boolean
 ---@field torn number|false where along it the tape broke (0..1)
+---@field persist boolean survives a restart of the server
 ---@field chains table[]|nil built chains
 ---@field phase number random sway phase
 ---@field holderA string|nil key of the holder at a (holders.lua)
@@ -308,6 +309,7 @@ local function decode(data)
         af = decodeFall(data.af),
         bf = decodeFall(data.bf),
         torn = type(data.torn) == 'number' and data.torn or false,
+        persist = data.persist ~= false, -- survives a restart of the server
         owner = data.owner,
     }
     local dx, dy, dz = t.b.x - t.a.x, t.b.y - t.a.y, t.b.z - t.a.z
@@ -348,6 +350,11 @@ end
 function world.restyle(id, style)
     local t = tapes[id]
     if t then t.style = style end
+end
+
+function world.setPersist(id, on)
+    local t = tapes[id]
+    if t then t.persist = on == true end
 end
 
 ---Tears a tape at fraction `frac` of its length. Its chain splits where it is, keeping how it

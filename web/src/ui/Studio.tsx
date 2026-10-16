@@ -5,16 +5,21 @@
 // No native colour pickers or <select>s: their pop-ups are separate windows that FiveM's
 // off-screen browser does not reliably draw. Everything here is drawn by the page itself.
 import { useEffect, useMemo, useState } from 'react';
-import { Copy, Plus, Save, Trash2, X } from 'lucide-react';
+import { Copy, Pin, PinOff, Plus, Save, Trash2, X } from 'lucide-react';
 import { FACES } from '../paint/fonts';
-import type { FontKey, PatternType, Separator, Style, TapeText } from '../paint/types';
+import type { EdgeStyle, Fade, FontKey, PatternType, Separator, Style, TapeText } from '../paint/types';
 import { useT } from './locale';
 import { post } from './nui';
 import { TapeStrip } from './TapeStrip';
 
 const CATEGORIES = ['police', 'federal', 'crime', 'fire', 'ems', 'hazard', 'utility', 'plain', 'international', 'custom'];
-const PATTERNS: ('none' | PatternType)[] = ['none', 'diagonal', 'blocks', 'checker', 'chevron', 'band', 'dashes'];
+const PATTERNS: ('none' | PatternType)[] = ['none', 'diagonal', 'blocks', 'checker', 'chevron', 'band', 'dashes', 'dots', 'zigzag', 'lines'];
+// The patterns whose stripes, blocks or dots can be made thicker or thinner (shared/schema.lua fill).
+const FILLED: PatternType[] = ['diagonal', 'blocks', 'chevron', 'dashes', 'dots', 'zigzag', 'lines'];
 const SEPARATORS: Separator[] = ['none', 'dot', 'star', 'bar', 'slash', 'diamond', 'cross', 'chevron'];
+const EDGE_STYLES: EdgeStyle[] = ['solid', 'double', 'dashed', 'checker'];
+const FADES: ('none' | Fade)[] = ['none', 'gradient', 'split'];
+const PIN_KEY = 'sd_policetape:studioPin';
 const PALETTE = [
   '#F6D10E', '#FFE45C', '#F2C14E', '#F26B1D', '#ED2939', '#C8102E', '#9E1B1B', '#B5179E',
   '#0B3D91', '#1565C0', '#002395', '#13216A', '#10263F', '#0A1F44', '#0E8A4A', '#1F4D2B',
@@ -25,16 +30,37 @@ const MAX_LINES = 6;
 const DEFAULT_TEXT: TapeText = {
   items: ['DO NOT CROSS'],
   color: '#121212',
+  altColor: false,
   font: 'oswald',
   size: 0.6,
   spacing: 0.04,
+  width: 1,
+  offset: 0,
   italic: false,
   plate: false,
   outline: false,
+  shadow: false,
   separator: 'none',
   separatorColor: false,
+  separatorSize: 1,
   repeats: 1,
 };
+
+function readPin(): boolean {
+  try {
+    return localStorage.getItem(PIN_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+function writePin(on: boolean): void {
+  try {
+    localStorage.setItem(PIN_KEY, on ? '1' : '0');
+  } catch {
+    /* (a page without storage just forgets) */
+  }
+}
 
 /** A fresh copy of a style to edit, as a new custom style. */
 function draftFrom(src: Style, label: string): Style {
@@ -144,6 +170,8 @@ export function Studio({ styles, startFrom, onClose, result }: Props) {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [status, setStatus] = useState<'' | 'saving' | 'saved' | 'error'>('');
   const [error, setError] = useState('');
+  // The proof stays at the top of the column while everything under it scrolls.
+  const [pinned, setPinned] = useState(readPin);
 
   // The server's answer to a save or delete.
   useEffect(() => {
@@ -285,7 +313,22 @@ export function Studio({ styles, startFrom, onClose, result }: Props) {
 
           {/* The style */}
           <div className="scroll flex min-h-0 flex-col gap-5 overflow-y-auto pb-5 pr-1">
-            <div className="sc-card p-4">
+            <div className={`sc-card p-4 pt-3 ${pinned ? 'sticky top-0 z-20 shadow-[0_14px_30px_rgba(0,0,0,0.6)]' : ''}`}>
+              <div className="mb-2.5 flex items-center gap-2">
+                <span className="sc-label">{t('studio.preview')}</span>
+                <button
+                  type="button"
+                  className={`sc-btn ml-auto h-7 px-2.5 text-[12px] ${pinned ? 'sc-btn--on' : ''}`}
+                  title={t(pinned ? 'studio.unpin' : 'studio.pin')}
+                  onClick={() => {
+                    setPinned(!pinned);
+                    writePin(!pinned);
+                  }}
+                >
+                  {pinned ? <PinOff size={13} /> : <Pin size={13} />}
+                  {t(pinned ? 'studio.unpin' : 'studio.pin')}
+                </button>
+              </div>
               <TapeStrip style={draft} height={52} className="sc-strip" />
               <div className="mt-4 grid grid-cols-3 gap-4">
                 {[
@@ -323,6 +366,19 @@ export function Studio({ styles, startFrom, onClose, result }: Props) {
               <Row label={t('studio.background')}>
                 <Colour value={draft.base} onChange={(v) => edit((d) => (d.base = v))} />
               </Row>
+              <Row label={t('studio.second_colour')}>
+                <Segmented
+                  value={draft.base2 ? draft.base2.mode : 'none'}
+                  options={FADES}
+                  render={(v) => t(`studio.fades.${v}`)}
+                  onChange={(v) => edit((d) => (d.base2 = v === 'none' ? false : { color: d.base2 ? d.base2.color : '#FFFFFF', mode: v }))}
+                />
+              </Row>
+              {draft.base2 && (
+                <Row label={t('studio.second_colour')}>
+                  <Colour value={draft.base2.color} onChange={(v) => edit((d) => d.base2 && (d.base2.color = v))} />
+                </Row>
+              )}
               <Row label={t('studio.pattern')}>
                 <Segmented
                   value={pattern ? pattern.type : 'none'}
@@ -330,7 +386,11 @@ export function Studio({ styles, startFrom, onClose, result }: Props) {
                   render={(v) => t(`studio.patterns.${v}`)}
                   onChange={(v) =>
                     edit((d) => {
-                      d.pattern = v === 'none' ? false : { type: v, color: d.pattern ? d.pattern.color : '#121212', size: d.pattern ? d.pattern.size : 0.6, angle: d.pattern ? d.pattern.angle : 45 };
+                      const p = d.pattern;
+                      d.pattern =
+                        v === 'none'
+                          ? false
+                          : { type: v, color: p ? p.color : '#121212', size: p ? p.size : 0.6, angle: p ? p.angle : 45, opacity: p ? p.opacity ?? 1 : 1, fill: p ? p.fill ?? 0.5 : 0.5 };
                     })
                   }
                 />
@@ -343,6 +403,14 @@ export function Studio({ styles, startFrom, onClose, result }: Props) {
                   <Row label={t('studio.pattern_size')}>
                     <Slider value={pattern.size} min={0.15} max={4} step={0.05} onChange={(v) => edit((d) => d.pattern && (d.pattern.size = v))} />
                   </Row>
+                  {FILLED.includes(pattern.type) && (
+                    <Row label={t('studio.pattern_fill')}>
+                      <Slider value={pattern.fill ?? 0.5} min={0.15} max={0.85} step={0.01} onChange={(v) => edit((d) => d.pattern && (d.pattern.fill = v))} />
+                    </Row>
+                  )}
+                  <Row label={t('studio.pattern_opacity')}>
+                    <Slider value={pattern.opacity ?? 1} min={0.1} max={1} step={0.01} onChange={(v) => edit((d) => d.pattern && (d.pattern.opacity = v))} />
+                  </Row>
                   {pattern.type === 'diagonal' && (
                     <Row label={t('studio.pattern_angle')}>
                       <Slider value={pattern.angle} min={-75} max={75} step={1} suffix="°" onChange={(v) => edit((d) => d.pattern && (d.pattern.angle = v))} />
@@ -351,15 +419,26 @@ export function Studio({ styles, startFrom, onClose, result }: Props) {
                 </>
               )}
               <Row label={t('studio.edges')}>
-                <OnOff on={!!draft.edges} onChange={(on) => edit((d) => (d.edges = on ? { color: '#121212', size: 0.08 } : false))} />
+                <OnOff on={!!draft.edges} onChange={(on) => edit((d) => (d.edges = on ? { color: '#121212', size: 0.08, style: 'solid', inset: 0 } : false))} />
               </Row>
               {draft.edges && (
                 <>
+                  <Row label={t('studio.edge_style')}>
+                    <Segmented
+                      value={draft.edges.style ?? 'solid'}
+                      options={EDGE_STYLES}
+                      render={(v) => t(`studio.edge_styles.${v}`)}
+                      onChange={(v) => edit((d) => d.edges && (d.edges.style = v))}
+                    />
+                  </Row>
                   <Row label={t('studio.edges')}>
                     <Colour value={draft.edges.color} onChange={(v) => edit((d) => d.edges && (d.edges.color = v))} />
                   </Row>
                   <Row label={t('studio.edge_size')}>
                     <Slider value={draft.edges.size} min={0.02} max={0.3} step={0.01} onChange={(v) => edit((d) => d.edges && (d.edges.size = v))} />
+                  </Row>
+                  <Row label={t('studio.edge_inset')}>
+                    <Slider value={draft.edges.inset ?? 0} min={0} max={0.2} step={0.01} onChange={(v) => edit((d) => d.edges && (d.edges.inset = v))} />
                   </Row>
                 </>
               )}
@@ -422,14 +501,28 @@ export function Studio({ styles, startFrom, onClose, result }: Props) {
                   <Row label={t('studio.text_color')}>
                     <Colour value={tx.color} onChange={(v) => editText((x) => (x.color = v))} />
                   </Row>
+                  <Row label={t('studio.alt_color')}>
+                    <OnOff on={!!tx.altColor} onChange={(on) => editText((x) => (x.altColor = on ? '#C8102E' : false))} />
+                  </Row>
+                  {tx.altColor && (
+                    <Row label={t('studio.alt_color')}>
+                      <Colour value={tx.altColor} onChange={(v) => editText((x) => (x.altColor = v))} />
+                    </Row>
+                  )}
                   <Row label={t('studio.italic')}>
                     <OnOff on={tx.italic} onChange={(on) => editText((x) => (x.italic = on))} />
                   </Row>
                   <Row label={t('studio.text_size')}>
                     <Slider value={tx.size} min={0.2} max={0.95} step={0.01} onChange={(v) => editText((x) => (x.size = v))} />
                   </Row>
+                  <Row label={t('studio.text_width')}>
+                    <Slider value={tx.width ?? 1} min={0.6} max={1.5} step={0.01} onChange={(v) => editText((x) => (x.width = v))} />
+                  </Row>
                   <Row label={t('studio.spacing')}>
                     <Slider value={tx.spacing} min={-0.05} max={0.4} step={0.01} onChange={(v) => editText((x) => (x.spacing = v))} />
+                  </Row>
+                  <Row label={t('studio.text_offset')}>
+                    <Slider value={tx.offset ?? 0} min={-0.3} max={0.3} step={0.01} onChange={(v) => editText((x) => (x.offset = v))} />
                   </Row>
                   <Row label={t('studio.repeats')}>
                     <Segmented value={tx.repeats} options={[1, 2, 3, 4]} onChange={(v) => editText((x) => (x.repeats = v))} render={(v) => String(v)} />
@@ -438,12 +531,17 @@ export function Studio({ styles, startFrom, onClose, result }: Props) {
                     <Segmented value={tx.separator} options={SEPARATORS} onChange={(v) => editText((x) => (x.separator = v))} render={(v) => t(`studio.separators.${v}`)} />
                   </Row>
                   {tx.separator !== 'none' && (
-                    <Row label={t('studio.separator_color')}>
-                      <Colour value={tx.separatorColor || tx.color} onChange={(v) => editText((x) => (x.separatorColor = v))} />
-                    </Row>
+                    <>
+                      <Row label={t('studio.separator_color')}>
+                        <Colour value={tx.separatorColor || tx.color} onChange={(v) => editText((x) => (x.separatorColor = v))} />
+                      </Row>
+                      <Row label={t('studio.separator_size')}>
+                        <Slider value={tx.separatorSize ?? 1} min={0.5} max={2} step={0.05} onChange={(v) => editText((x) => (x.separatorSize = v))} />
+                      </Row>
+                    </>
                   )}
                   <Row label={t('studio.plate')}>
-                    <OnOff on={!!tx.plate} onChange={(on) => editText((x) => (x.plate = on ? { color: draft.base, padding: 0.25 } : false))} />
+                    <OnOff on={!!tx.plate} onChange={(on) => editText((x) => (x.plate = on ? { color: draft.base, padding: 0.25, radius: 0 } : false))} />
                   </Row>
                   {tx.plate && (
                     <>
@@ -452,6 +550,22 @@ export function Studio({ styles, startFrom, onClose, result }: Props) {
                       </Row>
                       <Row label={t('studio.plate_padding')}>
                         <Slider value={tx.plate.padding} min={0} max={1} step={0.01} onChange={(v) => editText((x) => x.plate && (x.plate.padding = v))} />
+                      </Row>
+                      <Row label={t('studio.plate_radius')}>
+                        <Slider value={tx.plate.radius ?? 0} min={0} max={0.5} step={0.01} onChange={(v) => editText((x) => x.plate && (x.plate.radius = v))} />
+                      </Row>
+                    </>
+                  )}
+                  <Row label={t('studio.shadow')}>
+                    <OnOff on={!!tx.shadow} onChange={(on) => editText((x) => (x.shadow = on ? { color: '#000000', distance: 0.04 } : false))} />
+                  </Row>
+                  {tx.shadow && (
+                    <>
+                      <Row label={t('studio.shadow')}>
+                        <Colour value={tx.shadow.color} onChange={(v) => editText((x) => x.shadow && (x.shadow.color = v))} />
+                      </Row>
+                      <Row label={t('studio.shadow_distance')}>
+                        <Slider value={tx.shadow.distance} min={0.01} max={0.15} step={0.01} onChange={(v) => editText((x) => x.shadow && (x.shadow.distance = v))} />
                       </Row>
                     </>
                   )}

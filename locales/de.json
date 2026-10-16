@@ -26,7 +26,10 @@
     "holder_unavailable": "Dieser Pfosten oder Kegel ist nicht verfügbar.",
     "admin_invalid": "Das ging nicht.",
     "admin_last_style": "Mindestens ein Stil muss verfügbar bleiben.",
-    "admin_last_holder": "Mindestens ein Pfosten oder Kegel muss verfügbar bleiben."
+    "admin_last_holder": "Mindestens ein Pfosten oder Kegel muss verfügbar bleiben.",
+    "persist_off": "Auf diesem Server wählen Spieler nicht, was erhalten bleibt.",
+    "kept": "Dieses Band bleibt nach einem Neustart.",
+    "not_kept": "Dieses Band verschwindet beim nächsten Neustart."
   },
   "ui": {
     "categories": {
@@ -69,7 +72,9 @@
       "stand_up": "Halten zum Aufstellen",
       "edit_tape": "Band bearbeiten",
       "stand_prompt": "Wieder aufstellen",
-      "close": "Schließen"
+      "close": "Schließen",
+      "kept": "Bleibt nach Neustart",
+      "not_kept": "Weg nach Neustart"
     },
     "picker": {
       "title": "Bandstile",

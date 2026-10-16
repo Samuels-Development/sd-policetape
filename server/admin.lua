@@ -30,6 +30,7 @@ local function row(tape)
         length = math.floor(math.sqrt(dx * dx + dy * dy + dz * dz) * 10 + 0.5) / 10,
         torn = tape.torn and true or false,
         down = (tape.af or tape.bf) and true or false,
+        persist = tape.persist ~= false,
         a = a,
         b = b,
         ah = tape.ap and tape.ah or nil,
@@ -61,12 +62,14 @@ local function broadcast()
     TriggerClientEvent('sd-policetape:client:settings', -1, settings.public())
 end
 
----@param deps { removeTapes: fun(ids: integer[]), tell: fun(src: integer, key: string, vars?: table, kind?: string) }
+---@param deps { removeTapes: fun(ids: integer[]), tell: fun(src: integer, key: string, vars?: table, kind?: string), setPersist: fun(tape: TapeRecord, on: boolean) }
 function admin.init(deps)
     ---Each returns ok and, for a toast, a message.
     local verbs = {
         toggle = function(src, d)
             if not settings.setToggle(d.key, d.on) then return false, t('notify.admin_invalid') end
+            -- Saving switched on or off: data/tapes.json is written again (emptied, or filled).
+            if d.key == 'Persist' then store.touch() end
             broadcast()
             log.info('%s set %s to %s', player.getName(src) or src, tostring(d.key), tostring(d.on))
             return true
@@ -90,6 +93,13 @@ function admin.init(deps)
             if not tape then return false, t('notify.not_found') end
             deps.removeTapes({ tape.id })
             log.info('%s took down tape #%d', player.getName(src) or src, tape.id)
+            return true
+        end,
+        persist = function(src, d)
+            local tape = store.get(d.id)
+            if not tape then return false, t('notify.not_found') end
+            deps.setPersist(tape, d.on == true)
+            log.info('%s set tape #%d to %s', player.getName(src) or src, tape.id, d.on and 'kept' or 'not kept')
             return true
         end,
         removeTorn = function(src)

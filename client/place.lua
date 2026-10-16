@@ -45,6 +45,14 @@ local function holderCount()
     return n
 end
 
+-- Whether the tape this player puts up survives a restart of the server (kept between sessions).
+-- Theirs to choose only while the server keeps tape at all and lets players decide.
+local keep = GetResourceKvpString('sd-policetape:persist') ~= 'false'
+
+local function choosing()
+    return config.Persist == true and config.PersistChoice ~= false
+end
+
 ---The holder menu's cards: every holder players may put up, with its picture.
 local function holderCards()
     local cards = {}
@@ -64,8 +72,9 @@ local C_NEXT, C_PREV = 14, 15 -- INPUT_WEAPON_WHEEL_NEXT / PREV: mouse wheel
 local C_NEXT2, C_PREV2 = 173, 172 -- INPUT_CELLPHONE_DOWN / UP: arrows / d-pad
 local C_PICKER = 47 -- INPUT_DETONATE: G / d-pad left
 local C_HOLDER = 74 -- INPUT_VEH_HEADLIGHT: H / d-pad right (free on foot)
+local C_PERSIST = 23 -- INPUT_ENTER: F / Y (placing is on foot, so nothing is entered)
 
-local BLOCK = { 24, 25, 14, 15, 16, 17, 37, 44, 47, 74, 140, 141, 142, 143, 172, 173, 177, 257, 263, 264 }
+local BLOCK = { 23, 24, 25, 14, 15, 16, 17, 37, 44, 47, 74, 140, 141, 142, 143, 172, 173, 177, 257, 263, 264 }
 
 local function t(key, vars) return locale.t(key, vars) end
 
@@ -170,6 +179,7 @@ local function keyLabels()
         style = kb and t('ui.hud.wheel') or t('ui.hud.dpad'),
         picker = kb and 'G' or '←',
         holder = kb and 'H' or '→',
+        persist = kb and 'F' or 'Y',
     }
 end
 
@@ -276,6 +286,9 @@ function place.start(style)
             if PLACE.Posts and holderCount() > 1 then
                 hudKeys[#hudKeys + 1] = { k = keys.holder, t = currentHolder().label }
             end
+            if choosing() then
+                hudKeys[#hudKeys + 1] = { k = keys.persist, t = keep and t('ui.hud.kept') or t('ui.hud.not_kept') }
+            end
             hudKeys[#hudKeys + 1] = { k = keys.done, t = (a or placed > 0) and t('ui.hud.done') or t('ui.hud.cancel') }
             if not nui.busy() then
                 nui.hud({
@@ -305,6 +318,7 @@ function place.start(style)
                                 bp = b.post == true,
                                 ah = from.holder and from.holder.id or nil,
                                 bh = b.holder and b.holder.id or nil,
+                                persist = keep or not choosing(),
                             })
                             busy = false
                             if type(res) == 'table' and res.ok then
@@ -333,6 +347,9 @@ function place.start(style)
                     style = state.step(style, 1)
                 elseif IsDisabledControlJustPressed(0, C_PREV) or IsDisabledControlJustPressed(0, C_PREV2) then
                     style = state.step(style, -1)
+                elseif IsDisabledControlJustPressed(0, C_PERSIST) and choosing() then
+                    keep = not keep
+                    SetResourceKvp('sd-policetape:persist', keep and 'true' or 'false')
                 elseif IsDisabledControlJustPressed(0, C_HOLDER) and PLACE.Posts and holderCount() > 1 then
                     -- The holder menu. The one under the pointer is the ghost in the world while
                     -- it is open; closed without a choice, the one before comes back.

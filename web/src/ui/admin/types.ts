@@ -19,6 +19,7 @@ export interface TapeRow {
   length: number;
   torn: boolean;
   down: boolean;
+  persist: boolean;
   a: Vec;
   b: Vec;
   ah?: string | null;

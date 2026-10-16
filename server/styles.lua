@@ -58,6 +58,9 @@ local function loadCustom()
         local s = schema.normalise(raw)
         if s then
             s.custom = true
+            -- (who made it is not part of the style, so normalise leaves it out: keep it)
+            s.author = type(raw.author) == 'string' and raw.author or nil
+            s.authorKey = type(raw.authorKey) == 'string' and raw.authorKey or nil
             custom[#custom + 1] = s
         end
     end
@@ -80,6 +83,15 @@ end
 
 function styles.get(id)
     return byId[id]
+end
+
+---Who `identifier` is, as a short hash: enough to tell a player's own styles apart, nothing to
+---look them up by.
+function styles.authorKey(identifier)
+    if type(identifier) ~= 'string' or identifier == '' then return nil end
+    local h = GetHashKey('sd-policetape:' .. identifier)
+    if h < 0 then h = h + 4294967296 end
+    return ('%08x'):format(h)
 end
 
 ---The style a tape falls back to when its own is gone.
@@ -105,8 +117,10 @@ local function newId()
 end
 
 ---Saves a studio style. A style with no id, or the id of a built-in, is saved as a new one.
+---`author` is the maker's name, `authorKey` a hash of who they are (styles.authorKey), so a
+---player's own styles can be told apart without sending anyone's identifier to everyone.
 ---@return table|nil style, string|nil error key, table|nil error vars
-function styles.save(raw, author)
+function styles.save(raw, author, authorKey)
     if type(raw) ~= 'table' then return nil, 'studio_invalid', { reason = 'empty' } end
 
     local existing = type(raw.id) == 'string' and byId[raw.id] or nil
@@ -122,7 +136,16 @@ function styles.save(raw, author)
     local s, why = schema.normalise(copy)
     if not s then return nil, 'studio_invalid', { reason = why } end
     s.custom = true
-    s.author = type(author) == 'string' and author or nil
+    -- Editing keeps who first made it; a new one is the saver's. A style from before there were
+    -- keys gets its maker's key the first time they edit it themselves.
+    author = type(author) == 'string' and author or nil
+    authorKey = type(authorKey) == 'string' and authorKey or nil
+    if editing then
+        s.author = existing.author or author
+        s.authorKey = existing.authorKey or (existing.author == author and authorKey or nil)
+    else
+        s.author, s.authorKey = author, authorKey
+    end
 
     if editing then
         for i, c in ipairs(custom) do

@@ -118,7 +118,8 @@ return {
     },
 
     Lifetime = 0, -- minutes before tape comes down by itself (0: never)
-    Persist = true, -- tape survives restarts (data/tapes.json)
+    Persist = true, -- tape survives restarts (data/tapes.json). false: none does, and the file is emptied
+    PersistChoice = true, -- players choose per tape whether it survives (F / Y while placing, F in its popup); false: all of it does
 
     Limits = {
         PerPlayer = 40, -- tapes one player can have out at once
@@ -132,8 +133,10 @@ return {
     Keys = {
         Remove = 'E', -- hold while looking at tape to take it down (not Left Alt: ox_target / qb-target own it)
         Restyle = 'G', -- while looking at tape: choose another style
+        Persist = 'F', -- in a tape's popup: keep it after a restart, or not (Config.PersistChoice)
         HoldTime = 900, -- ms to hold Remove
         PadRemove = 'LDOWN_INDEX', -- controller: d-pad down
         PadRestyle = 'LLEFT_INDEX', -- controller: d-pad left
+        PadPersist = 'RUP_INDEX', -- controller: Y / triangle
     },
 }

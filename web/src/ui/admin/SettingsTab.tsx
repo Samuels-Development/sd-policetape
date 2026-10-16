@@ -7,10 +7,11 @@ import { ScrollArea } from './ScrollArea';
 import { Badge, Heading, Hint, Switch } from './shared';
 import { useAdmin } from './store';
 
-const GROUPS = ['tape', 'holders', 'placing', 'item'];
+const GROUPS = ['tape', 'holders', 'placing', 'saving', 'item'];
 
 // What each depends on: without it, it has nothing to do.
 const NEEDS: Record<string, string> = {
+  PersistChoice: 'Persist',
   'Holders.Vehicles': 'Holders.Knock',
   'Holders.Kick': 'Holders.Knock',
   'Holders.Run': 'Holders.Knock',

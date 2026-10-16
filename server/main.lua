@@ -115,7 +115,12 @@ end
 -- State -----------------------------------------------------------------------------------------
 
 lib.callback.register('sd-policetape:server:state', function(src)
-    return { styles = styles.list(), tapes = store.publicList(), perms = access.perms(src), settings = settings.public() }
+    return {
+        styles = styles.list(), tapes = store.publicList(), perms = access.perms(src), settings = settings.public(),
+        -- Who this player is to the style picker ("Yours"): the key their studio styles carry, and
+        -- their name for the ones saved before there were keys.
+        me = { key = styles.authorKey(player.getIdentifier(src)), name = player.getName(src) },
+    }
 end)
 
 lib.callback.register('sd-policetape:server:perms', function(src)
@@ -223,6 +228,10 @@ local function placeTape(src, data, skipChecks)
         if not inventory.remove(src, ITEM.Name, 1) then return nil, t('notify.no_item') end
     end
 
+    -- Whether it survives a restart: the placer's choice, unless players are not given one.
+    local persist = data.persist ~= false
+    if not skipChecks and config.PersistChoice == false then persist = true end
+
     local tape = store.add({
         style = style,
         a = { x = a.x, y = a.y, z = a.z },
@@ -231,6 +240,7 @@ local function placeTape(src, data, skipChecks)
         bp = bp,
         ah = ah,
         bh = bh,
+        persist = persist,
         af = ap and fallAt(a) or nil,
         bf = bp and fallAt(b) or nil,
         owner = owner,
@@ -292,6 +302,25 @@ RegisterNetEvent('sd-policetape:server:restyle', function(id, style)
     tape.style = style
     store.touch()
     TriggerClientEvent('sd-policetape:client:restyle', -1, tape.id, style)
+end)
+
+---Whether a tape survives a restart of the server, set from its popup.
+local function setPersist(tape, on)
+    tape.persist = on == true
+    store.touch()
+    TriggerClientEvent('sd-policetape:client:persist', -1, tape.id, tape.persist)
+end
+
+RegisterNetEvent('sd-policetape:server:persist', function(id, on)
+    local src = source
+    local tape = store.get(id)
+    if not tape then return tell(src, 'notify.not_found') end
+    if not config.Persist or config.PersistChoice == false then return tell(src, 'notify.persist_off') end
+    if not mayTouch(src, tape) then return tell(src, 'notify.no_permission') end
+    if not nearTape(src, tape) then return tell(src, 'notify.too_far') end
+    if not allow(src, 'persist', 30, 60) then return tell(src, 'notify.rate_limited') end
+    setPersist(tape, on)
+    tell(src, on and 'notify.kept' or 'notify.not_kept', nil, 'inform')
 end)
 
 -- Tearing ---------------------------------------------------------------------------------------
@@ -451,7 +480,7 @@ end)
 lib.callback.register('sd-policetape:server:saveStyle', function(src, raw)
     if not access.canStudio(src) then return { ok = false, error = t('notify.no_permission') } end
     if not allow(src, 'studio', 20, 60) then return { ok = false, error = t('notify.rate_limited') } end
-    local s, errKey, vars = styles.save(raw, player.getName(src))
+    local s, errKey, vars = styles.save(raw, player.getName(src), styles.authorKey(player.getIdentifier(src)))
     if not s then return { ok = false, error = t('notify.' .. errKey, vars) } end
     log.info('style "%s" (%s) saved by %s', s.label, s.id, player.getName(src))
     return { ok = true, id = s.id }
@@ -492,7 +521,7 @@ local function clearNear(coords, radius)
     return #ids
 end
 
-admin.init({ removeTapes = removeTapes, tell = tell })
+admin.init({ removeTapes = removeTapes, tell = tell, setPersist = setPersist })
 
 lib.addCommand(config.Commands.Clear, {
     help = 'Take down police tape near you, or everywhere',
@@ -524,6 +553,7 @@ exports('PlaceTape', function(style, a, b, opts)
     opts = opts or {}
     local tape = placeTape(0, {
         style = style, a = a, b = b, ap = opts.postA, bp = opts.postB, ah = opts.holderA, bh = opts.holderB,
+        persist = opts.persist, -- false: gone after the next restart
     }, true)
     return tape and tape.id or nil
 end)

@@ -50,6 +50,8 @@ const TOGGLES: [string, string, boolean][] = [
   ['Item.Enabled', 'item', true],
   ['Item.Consume', 'item', false],
   ['Item.Refund', 'item', true],
+  ['Persist', 'saving', true],
+  ['PersistChoice', 'saving', true],
 ];
 
 const now = Math.floor(Date.now() / 1000);
@@ -78,6 +80,7 @@ const snapshot: Snapshot = {
       length: length as number,
       torn: torn as boolean,
       down: down as boolean,
+      persist: i !== 1,
       a: { x: 0, y: 0, z: 0 },
       b: { x: 1, y: 0, z: 0 },
       street: street as string,
@@ -96,6 +99,8 @@ export function adminAct(verb: string, data: Record<string, unknown>): ActReply 
     const set = new Set(snapshot[key]);
     for (const id of idList) data.on ? set.delete(id) : set.add(id);
     snapshot[key] = [...set];
+  } else if (verb === 'persist') {
+    snapshot.tapes = snapshot.tapes.map((r) => (r.id === data.id ? { ...r, persist: data.on === true } : r));
   } else if (verb === 'remove') {
     snapshot.tapes = snapshot.tapes.filter((r) => r.id !== data.id);
   } else if (verb === 'removeTorn') {
@@ -109,7 +114,12 @@ export function adminAct(verb: string, data: Record<string, unknown>): ActReply 
 export function start(): void {
   // A grey-green stand-in for the game behind the page.
   document.body.style.background = "linear-gradient(160deg, #5d6b5a, #3d4a52)";
-  send({ action: 'init', styles, canStudio: true });
+  // Two Tape Studio styles, one of them this player's, for the picker's Custom and Yours.
+  const studio = [
+    { ...styles[1], id: 'c_dev001', label: 'Davis Block Party', category: 'crime', custom: true, author: 'Samuel Black', authorKey: 'a1b2c3d4' },
+    { ...styles[4], id: 'c_dev002', label: 'Ranger Station', category: 'utility', custom: true, author: 'Jessica Hale', authorKey: 'ffee0011' },
+  ];
+  send({ action: 'init', styles: [...styles, ...studio], canStudio: true, me: { key: 'a1b2c3d4', name: 'Samuel Black' } });
 
   const view = location.hash.slice(1) || 'place';
   if (view === 'place') {

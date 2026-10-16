@@ -46,6 +46,7 @@ local function loadState()
     end
     setPerms(s.perms)
     setSettings(s.settings)
+    nui.setMe(s.me)
     setStyles(s.styles or {})
     world.load(s.tapes or {})
     log.debug('main', '%d styles, %d tapes', #(s.styles or {}), #(s.tapes or {}))
@@ -67,6 +68,8 @@ RegisterNetEvent('sd-policetape:client:remove', function(ids)
 end)
 
 RegisterNetEvent('sd-policetape:client:restyle', function(id, style) world.restyle(id, style) end)
+
+RegisterNetEvent('sd-policetape:client:persist', function(id, on) world.setPersist(id, on) end)
 
 RegisterNetEvent('sd-policetape:client:tear', function(id, frac) world.tear(id, frac) end)
 

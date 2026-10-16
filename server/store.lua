@@ -1,4 +1,6 @@
----Every tape on the server, kept in memory and (with Config.Persist) in data/tapes.json.
+---Every tape on the server, kept in memory and (with Config.Persist) in data/tapes.json: the ones
+---marked to survive a restart. Config.Persist can be switched in the admin menu while the server
+---runs; off, the file is emptied, so nothing comes back after the next restart.
 local config = require 'configs.config'
 local log = require 'shared.log'
 
@@ -20,6 +22,7 @@ local store = {}
 ---@field bf table|nil
 ---@field torn number|false
 ---@field tornAt integer|nil
+---@field persist boolean survives a restart of the server (written to data/tapes.json)
 ---@field owner string|nil identifier of whoever placed it
 ---@field ownerName string|nil
 ---@field created integer os.time()
@@ -46,6 +49,7 @@ function store.load()
         if type(t) == 'table' and tonumber(t.id) and type(t.a) == 'table' and type(t.b) == 'table' then
             t.id = math.floor(tonumber(t.id))
             t.torn = type(t.torn) == 'number' and t.torn or false
+            t.persist = true -- (only what is to survive is ever written)
             -- Saved before there were cones: what stood there was the post.
             if t.ap and not t.ah then t.ah = 'post' end
             if t.bp and not t.bh then t.bh = 'post' end
@@ -58,10 +62,14 @@ function store.load()
 end
 
 local function flush()
-    if not dirty or not config.Persist then return end
+    if not dirty then return end
     dirty = false
     local list = {}
-    for _, t in pairs(tapes) do list[#list + 1] = t end
+    if config.Persist then
+        for _, t in pairs(tapes) do
+            if t.persist ~= false then list[#list + 1] = t end
+        end
+    end
     table.sort(list, function(x, y) return x.id < y.id end)
     SaveResourceFile(RESOURCE, FILE, json.encode(list), -1)
 end
@@ -82,6 +90,7 @@ function store.add(t)
     t.a = { x = round(t.a.x), y = round(t.a.y), z = round(t.a.z) }
     t.b = { x = round(t.b.x), y = round(t.b.y), z = round(t.b.z) }
     t.torn = t.torn or false
+    t.persist = t.persist ~= false
     t.created = t.created or os.time()
     tapes[t.id] = t
     touch()
@@ -122,7 +131,7 @@ end
 function store.public(t)
     return {
         id = t.id, style = t.style, a = t.a, b = t.b, ap = t.ap, bp = t.bp,
-        ah = t.ah, bh = t.bh, af = t.af, bf = t.bf, torn = t.torn,
+        ah = t.ah, bh = t.bh, af = t.af, bf = t.bf, torn = t.torn, persist = t.persist,
     }
 end
 

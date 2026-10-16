@@ -26,7 +26,10 @@
     "holder_unavailable": "That post or cone is not available.",
     "admin_invalid": "That could not be done.",
     "admin_last_style": "At least one tape style has to stay available.",
-    "admin_last_holder": "At least one post or cone has to stay available."
+    "admin_last_holder": "At least one post or cone has to stay available.",
+    "persist_off": "Players do not choose what is kept on this server.",
+    "kept": "This tape is kept after a restart.",
+    "not_kept": "This tape goes at the next restart."
   },
   "ui": {
     "categories": {
@@ -69,7 +72,9 @@
       "stand_up": "Hold to stand it up",
       "edit_tape": "Edit tape",
       "stand_prompt": "Stand it up",
-      "close": "Close"
+      "close": "Close",
+      "kept": "Kept after a restart",
+      "not_kept": "Gone after a restart"
     },
     "picker": {
       "title": "Tape styles",
@@ -80,7 +85,9 @@
       "count": "{count} styles",
       "choose": "choose",
       "use": "use",
-      "exit": "close"
+      "exit": "close",
+      "yours": "Yours",
+      "by": "by {name}"
     },
     "studio": {
       "title": "Tape studio",
@@ -132,7 +139,10 @@
         "checker": "Checks",
         "chevron": "Chevrons",
         "band": "Centre band",
-        "dashes": "Dashes"
+        "dashes": "Dashes",
+        "dots": "Dots",
+        "zigzag": "Zigzag",
+        "lines": "Pinstripes"
       },
       "separators": {
         "none": "None",
@@ -146,7 +156,33 @@
       },
       "subtitle": "Make tape styles for everyone on this server",
       "details": "Details",
-      "look": "Colours and pattern"
+      "look": "Colours and pattern",
+      "preview": "Preview",
+      "pin": "Pin to top",
+      "unpin": "Unpin",
+      "second_colour": "Second colour",
+      "fades": {
+        "none": "Off",
+        "gradient": "Gradient",
+        "split": "Split"
+      },
+      "pattern_fill": "Thickness",
+      "pattern_opacity": "Strength",
+      "edge_style": "Band style",
+      "edge_styles": {
+        "solid": "Solid",
+        "double": "Double",
+        "dashed": "Dashed",
+        "checker": "Checked"
+      },
+      "edge_inset": "Gap from the edge",
+      "alt_color": "Every other in",
+      "text_width": "Letter width",
+      "text_offset": "Height on the tape",
+      "separator_size": "Mark size",
+      "plate_radius": "Box corners",
+      "shadow": "Shadow",
+      "shadow_distance": "Shadow distance"
     },
     "holders": {
       "title": "Posts and cones",
@@ -206,7 +242,14 @@
         "confirm_torn_body": "{count} torn tapes come down, for everyone.",
         "confirm_go": "Take down",
         "toast_removed": "Tape #{id} taken down",
-        "toast_waypoint": "Waypoint set to tape #{id}"
+        "toast_waypoint": "Waypoint set to tape #{id}",
+        "not_kept": "Not kept",
+        "not_kept_hint": "Gone at the next restart",
+        "saving_off_hint": "Saving is switched off in Settings: no tape is kept",
+        "keep": "Keep it after a restart",
+        "dont_keep": "Don't keep it after a restart",
+        "toast_kept": "Tape #{id} is kept after a restart",
+        "toast_not_kept": "Tape #{id} goes at the next restart"
       },
       "styles": {
         "title": "Styles",
@@ -244,7 +287,8 @@
           "tape": "Tape",
           "holders": "Posts and cones",
           "placing": "Placing",
-          "item": "Item"
+          "item": "Item",
+          "saving": "Saving"
         },
         "toast_on": "{name}: on",
         "toast_off": "{name}: off",
@@ -308,6 +352,14 @@
           "Item_Refund": {
             "label": "Gives the roll back",
             "hint": "With rolls used up: taking down your own tape gives the roll back."
+          },
+          "Persist": {
+            "label": "Tape survives restarts",
+            "hint": "Tape is kept in data/tapes.json and comes back after a restart. Off: none does, and the file is emptied at once."
+          },
+          "PersistChoice": {
+            "label": "Players choose per tape",
+            "hint": "While placing (F) and in a tape's popup, players say whether that tape is kept. Off: all tape is kept."
           }
         }
       }

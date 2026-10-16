@@ -13,7 +13,7 @@ import { Holders, type HolderCard } from './Holders';
 import { Hud, type HudState } from './Hud';
 import { LocaleContext, fallback, makeT, type Dict } from './locale';
 import { post, useNuiMessages } from './nui';
-import { Picker } from './Picker';
+import { Picker, type Me } from './Picker';
 import { Studio } from './Studio';
 
 type StudioResult = { ok: boolean; id?: string; error?: string; serial: number };
@@ -24,6 +24,7 @@ export function App() {
   const [dict, setDict] = useState<Dict>(fallback);
   const [styles, setStyles] = useState<Style[]>([]);
   const [off, setOff] = useState<string[]>([]);
+  const [me, setMe] = useState<Me | null>(null);
   const [canStudio, setCanStudio] = useState(false);
   const [hud, setHud] = useState<HudState | null>(null);
   const [progress, setProgress] = useState(0);
@@ -40,7 +41,11 @@ export function App() {
         if (msg.locale && typeof msg.locale === 'object') setDict(msg.locale as Dict);
         if (Array.isArray(msg.styles)) setStyles(msg.styles as Style[]);
         setOff(ids(msg.off));
+        if (msg.me && typeof msg.me === 'object') setMe(msg.me as Me);
         setCanStudio(msg.canStudio === true);
+        break;
+      case 'me':
+        setMe(msg.me && typeof msg.me === 'object' ? (msg.me as Me) : null);
         break;
       case 'styles':
         if (Array.isArray(msg.styles)) setStyles(msg.styles as Style[]);
@@ -126,6 +131,7 @@ export function App() {
             styles={offered}
             selected={picker.selected}
             canStudio={canStudio}
+            me={me}
             onHover={(id) => {
               setLiveId(id);
               void post('pickerHover', { id });

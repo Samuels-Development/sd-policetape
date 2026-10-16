@@ -8,9 +8,11 @@
 local schema = {}
 
 schema.CATEGORIES = { 'police', 'federal', 'crime', 'fire', 'ems', 'hazard', 'utility', 'plain', 'international', 'custom' }
-schema.PATTERNS = { 'none', 'diagonal', 'blocks', 'checker', 'chevron', 'band', 'dashes' }
+schema.PATTERNS = { 'none', 'diagonal', 'blocks', 'checker', 'chevron', 'band', 'dashes', 'dots', 'zigzag', 'lines' }
 schema.FONTS = { 'oswald', 'anton', 'bebas', 'barlow', 'roboto', 'teko', 'stencil', 'archivo', 'russo', 'staatliches', 'blackops' }
 schema.SEPARATORS = { 'none', 'dot', 'star', 'bar', 'slash', 'diamond', 'cross', 'chevron' }
+schema.EDGE_STYLES = { 'solid', 'double', 'dashed', 'checker' }
+schema.FADES = { 'gradient', 'split' }
 
 schema.MAX_ITEMS = 6
 schema.MAX_ITEM_LENGTH = 32
@@ -23,6 +25,7 @@ local function set(list)
 end
 
 local CATEGORY, PATTERN, FONT, SEPARATOR = set(schema.CATEGORIES), set(schema.PATTERNS), set(schema.FONTS), set(schema.SEPARATORS)
+local EDGE_STYLE, FADE = set(schema.EDGE_STYLES), set(schema.FADES)
 
 ---@param v any
 ---@param fallback string
@@ -86,6 +89,10 @@ function schema.normalise(s)
         custom = s.custom == true,
     }
 
+    -- A second background colour: a gradient from top to bottom, or the tape split in two.
+    local b2 = type(s.base2) == 'table' and s.base2 or nil
+    out.base2 = b2 and FADE[b2.mode] and { color = color(b2.color, '#FFFFFF'), mode = b2.mode } or false
+
     local p = type(s.pattern) == 'table' and s.pattern or nil
     if p and PATTERN[p.type] and p.type ~= 'none' then
         out.pattern = {
@@ -93,6 +100,8 @@ function schema.normalise(s)
             color = color(p.color, '#121212'),
             size = num(p.size, 0.15, 4.0, 0.6),
             angle = num(p.angle, -75, 75, 45),
+            opacity = num(p.opacity, 0.1, 1, 1),
+            fill = num(p.fill, 0.15, 0.85, 0.5), -- how much of each period is printed (stripes, blocks, dashes...)
         }
     else
         out.pattern = false
@@ -100,7 +109,12 @@ function schema.normalise(s)
 
     local e = type(s.edges) == 'table' and s.edges or nil
     if e and num(e.size, 0, 0.3, 0) > 0 then
-        out.edges = { color = color(e.color, '#121212'), size = num(e.size, 0.01, 0.3, 0.08) }
+        out.edges = {
+            color = color(e.color, '#121212'),
+            size = num(e.size, 0.01, 0.3, 0.08),
+            style = EDGE_STYLE[e.style] and e.style or 'solid',
+            inset = num(e.inset, 0, 0.2, 0), -- a gap of base colour between the band and the tape's edge
+        }
     else
         out.edges = false
     end
@@ -117,18 +131,24 @@ function schema.normalise(s)
     if #items > 0 then
         local plate = type(t.plate) == 'table' and t.plate or nil
         local outline = type(t.outline) == 'table' and t.outline or nil
+        local shadow = type(t.shadow) == 'table' and t.shadow or nil
         out.text = {
             items = items,
             color = color(t.color, '#121212'),
+            altColor = t.altColor and color(t.altColor, false) or false, -- every other piece of wording in this
             font = FONT[t.font] and t.font or 'oswald',
             size = num(t.size, 0.2, 0.95, 0.6),
             spacing = num(t.spacing, -0.05, 0.4, 0.04),
+            width = num(t.width, 0.6, 1.5, 1), -- letters narrower or wider than the face draws them
+            offset = num(t.offset, -0.3, 0.3, 0), -- up (-) or down (+) from the middle, in tape widths
             italic = t.italic == true,
-            plate = plate and { color = color(plate.color, '#FFFFFF'), padding = num(plate.padding, 0, 1, 0.25) } or false,
+            plate = plate and { color = color(plate.color, '#FFFFFF'), padding = num(plate.padding, 0, 1, 0.25), radius = num(plate.radius, 0, 0.5, 0) } or false,
             outline = outline and num(outline.width, 0, 0.3, 0) > 0
                 and { color = color(outline.color, '#000000'), width = num(outline.width, 0.01, 0.3, 0.08) } or false,
+            shadow = shadow and { color = color(shadow.color, '#000000'), distance = num(shadow.distance, 0.01, 0.15, 0.04) } or false,
             separator = SEPARATOR[t.separator] and t.separator or 'none',
             separatorColor = t.separatorColor and color(t.separatorColor, false) or false,
+            separatorSize = num(t.separatorSize, 0.5, 2, 1),
             repeats = math.floor(num(t.repeats, 1, 4, 1)),
         }
     else

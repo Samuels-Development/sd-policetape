@@ -26,7 +26,10 @@
     "holder_unavailable": "Ce poteau ou ce cône n'est pas disponible.",
     "admin_invalid": "Impossible de faire cela.",
     "admin_last_style": "Au moins un style de ruban doit rester disponible.",
-    "admin_last_holder": "Au moins un poteau ou un cône doit rester disponible."
+    "admin_last_holder": "Au moins un poteau ou un cône doit rester disponible.",
+    "persist_off": "Sur ce serveur, les joueurs ne choisissent pas ce qui est conservé.",
+    "kept": "Ce ruban est conservé après un redémarrage.",
+    "not_kept": "Ce ruban disparaît au prochain redémarrage."
   },
   "ui": {
     "categories": {
@@ -69,7 +72,9 @@
       "stand_up": "Maintenir pour le redresser",
       "edit_tape": "Modifier le ruban",
       "stand_prompt": "Le relever",
-      "close": "Fermer"
+      "close": "Fermer",
+      "kept": "Conservé au redémarrage",
+      "not_kept": "Disparaît au redémarrage"
     },
     "picker": {
       "title": "Styles de rubalise",
