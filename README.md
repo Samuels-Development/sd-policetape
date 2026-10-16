@@ -38,6 +38,9 @@ A driveway in Mirror Park, taped off. Click any image for the full-size version.
 <p align="center"><a href="docs/previews/ingame/scene.webp"><img src="docs/previews/ingame/scene.webp" alt="A driveway taped off on four delineator posts at night" width="960" /></a></p>
 <p align="center"><sub>Four posts and four stretches of tape, sagging with their length</sub></p>
 
+<p align="center"><a href="docs/previews/ingame/walls.webp"><img src="docs/previews/ingame/walls.webp" alt="Tape tied from the side of a house across a back yard to the yard wall" width="960" /></a></p>
+<p align="center"><sub>Or tied to walls, with nothing to stand on: from the side of the house to the yard wall</sub></p>
+
 <div align="center">
 <table>
   <tr>
