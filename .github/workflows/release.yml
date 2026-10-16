@@ -47,7 +47,7 @@ jobs:
       - name: Stage resource
         run: |
           mkdir -p dist/sd-policetape/web dist/sd-policetape/data
-          cp fxmanifest.lua README.md dist/sd-policetape/
+          cp fxmanifest.lua README.md LICENSE dist/sd-policetape/
           cp -r bridge client server shared configs locales images stream dist/sd-policetape/
           cp data/README.md dist/sd-policetape/data/
           cp -r web/build dist/sd-policetape/web/build
