@@ -12,11 +12,12 @@ return {
         Styles = 'tapestyles', -- open the style picker to choose the style you place with
         Studio = 'tapestudio', -- the Tape Studio, for making new styles
         Clear = 'cleartape', -- /cleartape [radius | all] (admins)
+        Admin = 'tapeadmin', -- the admin menu: every tape on the server, the switches below, and which styles and holders police get (admins)
     },
 
     -- A roll of tape as an inventory item. Add it to your inventory's items (see README).
     Item = {
-        Enabled = false, -- false: anyone allowed to use tape needs no item (off for testing; README step 3 adds the item)
+        Enabled = true, -- false: anyone allowed to use tape needs no item
         Name = 'police_tape',
         Consume = false, -- take one roll per stretch of tape placed
         Refund = true, -- with Consume: give the roll back to whoever takes their own tape down

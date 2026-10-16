@@ -15,25 +15,45 @@ local PLACE = config.Placement
 
 local place = { active = false }
 
--- The holder a new end stands on: the last one this player picked (kept between sessions).
-local holderIndex = 1
-do
-    local saved = GetResourceKvpString('sd-policetape:holder')
-    local want = holder.get(saved) or holder.default()
-    for i, def in ipairs(holder.list) do
-        if def == want then holderIndex = i end
-    end
-end
+-- The holder a new end stands on: the last one this player picked in the holder menu (kept
+-- between sessions), unless the admin menu has taken it away; then the first one there is.
+local chosen = GetResourceKvpString('sd-policetape:holder')
 
 local function currentHolder()
-    return holder.list[holderIndex] or holder.default()
+    local def = holder.get(chosen)
+    if def and state.holderAllowed(def.id) then return def end
+    def = holder.default()
+    if def and state.holderAllowed(def.id) then return def end
+    for _, h in ipairs(holder.list) do
+        if state.holderAllowed(h.id) then return h end
+    end
+    return holder.default()
 end
 
-local function nextHolder(step)
-    local n = #holder.list
-    if n == 0 then return end
-    holderIndex = (holderIndex - 1 + step) % n + 1
-    SetResourceKvp('sd-policetape:holder', currentHolder().id)
+---@param keep boolean remember it for next time (a hover in the menu is only a preview)
+local function setHolder(id, keep)
+    if not holder.get(id) then return end
+    chosen = id
+    if keep then SetResourceKvp('sd-policetape:holder', id) end
+end
+
+local function holderCount()
+    local n = 0
+    for _, def in ipairs(holder.list) do
+        if state.holderAllowed(def.id) then n = n + 1 end
+    end
+    return n
+end
+
+---The holder menu's cards: every holder players may put up, with its picture.
+local function holderCards()
+    local cards = {}
+    for _, def in ipairs(holder.list) do
+        if state.holderAllowed(def.id) then
+            cards[#cards + 1] = { id = def.id, label = def.label, image = def.image, height = def.body[3] }
+        end
+    end
+    return cards
 end
 
 -- Controls (https://docs.fivem.net/docs/game-references/controls/)
@@ -196,7 +216,7 @@ function place.start(style)
         return
     end
 
-    style = (style and state.style(style)) and style or state.defaultStyle()
+    style = (style and state.styleAllowed(style)) and style or state.defaultStyle()
     if not style then return end
 
     place.active = true
@@ -212,6 +232,9 @@ function place.start(style)
             if IsEntityDead(ped) or IsPedRagdoll(ped) or (PLACE.OnFoot and IsPedInAnyVehicle(ped, false)) then break end
 
             for i = 1, #BLOCK do DisableControlAction(0, BLOCK[i], true) end
+
+            -- (an admin can take a style away while it is in someone's hand)
+            if not state.styleAllowed(style) then style = state.defaultStyle() or style end
 
             local target = aim(ped)
             local ok, line, kind = false, nil, 'ok'
@@ -250,7 +273,7 @@ function place.start(style)
                 { k = keys.style, t = t('ui.hud.style') },
                 { k = keys.picker, t = t('ui.hud.all_styles') },
             }
-            if PLACE.Posts and #holder.list > 1 then
+            if PLACE.Posts and holderCount() > 1 then
                 hudKeys[#hudKeys + 1] = { k = keys.holder, t = currentHolder().label }
             end
             hudKeys[#hudKeys + 1] = { k = keys.done, t = (a or placed > 0) and t('ui.hud.done') or t('ui.hud.cancel') }
@@ -310,8 +333,15 @@ function place.start(style)
                     style = state.step(style, 1)
                 elseif IsDisabledControlJustPressed(0, C_PREV) or IsDisabledControlJustPressed(0, C_PREV2) then
                     style = state.step(style, -1)
-                elseif IsDisabledControlJustPressed(0, C_HOLDER) and PLACE.Posts then
-                    nextHolder(1)
+                elseif IsDisabledControlJustPressed(0, C_HOLDER) and PLACE.Posts and holderCount() > 1 then
+                    -- The holder menu. The one under the pointer is the ghost in the world while
+                    -- it is open; closed without a choice, the one before comes back.
+                    local before = currentHolder().id
+                    nui.openHolders(holderCards(), before, function(id)
+                        setHolder(id or before, id ~= nil)
+                    end, function(id)
+                        setHolder(id, false)
+                    end)
                 elseif IsDisabledControlJustPressed(0, C_PICKER) then
                     local before = style
                     nui.openPicker(style, function(id)
@@ -325,7 +355,7 @@ function place.start(style)
             Wait(0)
         end
 
-        if nui.busy() then nui.closePicker() end
+        nui.closeMenus()
         stop()
     end)
 end

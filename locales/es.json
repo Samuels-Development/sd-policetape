@@ -21,7 +21,12 @@
     "studio_invalid": "No se pudo guardar el estilo: {reason}.",
     "studio_full": "Ya hay {max} estilos propios. Borra uno primero.",
     "unknown_style": "Ese estilo de cinta no existe.",
-    "not_found": "Esa cinta ya no está."
+    "not_found": "Esa cinta ya no está.",
+    "style_unavailable": "Ese estilo de cinta no está disponible.",
+    "holder_unavailable": "Ese poste o cono no está disponible.",
+    "admin_invalid": "No se pudo hacer.",
+    "admin_last_style": "Al menos un estilo de cinta tiene que seguir disponible.",
+    "admin_last_holder": "Al menos un poste o cono tiene que seguir disponible."
   },
   "ui": {
     "categories": {
@@ -61,7 +66,10 @@
       "torn": "Rota",
       "holder_here": "Aquí irá: {name}",
       "knocked_over": "Derribado",
-      "stand_up": "Mantén para levantarlo"
+      "stand_up": "Mantén para levantarlo",
+      "edit_tape": "Editar cinta",
+      "stand_prompt": "Levantarlo",
+      "close": "Cerrar"
     },
     "picker": {
       "title": "Estilos de cinta",

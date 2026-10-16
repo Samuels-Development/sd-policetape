@@ -10,6 +10,8 @@ local player = require 'bridge.server.player'
 local access = require 'server.access'
 local styles = require 'server.styles'
 local store = require 'server.store'
+local settings = require 'server.settings'
+local admin = require 'server.admin'
 local holder = require 'shared.holder'
 
 local PLACE = config.Placement
@@ -19,6 +21,7 @@ local HOLD = config.Holders or {}
 local LIMITS = config.Limits
 
 styles.load()
+settings.load()
 store.load()
 
 -- Tapes whose style was deleted fall back to the first style.
@@ -26,9 +29,14 @@ for _, t in pairs(store.all()) do
     if not styles.get(t.style) then t.style = styles.fallback() end
 end
 
-local itemOn = ITEM.Enabled and (inventory.system ~= nil or framework.name ~= 'standalone')
-if ITEM.Enabled and not itemOn then
+-- Whether there is anything to check an item with at all. Config.Item.Enabled itself can be
+-- switched in the admin menu while the server runs, so it is read each time.
+local itemPossible = inventory.system ~= nil or framework.name ~= 'standalone'
+if ITEM.Enabled and not itemPossible then
     log.warn('Config.Item is on but there is no inventory to check it with; tape needs no item')
+end
+local function itemOn()
+    return ITEM.Enabled == true and itemPossible
 end
 
 local function t(key, vars) return locale.t(key, vars) end
@@ -107,7 +115,7 @@ end
 -- State -----------------------------------------------------------------------------------------
 
 lib.callback.register('sd-policetape:server:state', function(src)
-    return { styles = styles.list(), tapes = store.publicList(), perms = access.perms(src) }
+    return { styles = styles.list(), tapes = store.publicList(), perms = access.perms(src), settings = settings.public() }
 end)
 
 lib.callback.register('sd-policetape:server:perms', function(src)
@@ -121,7 +129,7 @@ end)
 -- Placing ---------------------------------------------------------------------------------------
 
 local function hasItem(src)
-    if not itemOn then return true end
+    if not itemOn() then return true end
     return (inventory.count(src, ITEM.Name) or 0) > 0
 end
 
@@ -135,7 +143,9 @@ RegisterNetEvent('sd-policetape:server:requestPlace', function()
     startPlacing(source)
 end)
 
-if itemOn then
+-- Registered whenever there is an inventory, so switching the item on in the admin menu needs no
+-- restart (with it off, using a roll just starts placing).
+if itemPossible then
     local ok, err = pcall(inventory.registerUsable, ITEM.Name, function(src)
         startPlacing(src)
     end)
@@ -177,11 +187,21 @@ local function placeTape(src, data, skipChecks)
     if len > PLACE.MaxLength + 0.05 then return nil, t('notify.too_long', { max = math.floor(PLACE.MaxLength) }) end
     if len < PLACE.MinLength - 0.05 then return nil, t('notify.too_short') end
 
-    local style = type(data.style) == 'string' and styles.get(data.style) and data.style or styles.fallback()
+    local style = type(data.style) == 'string' and styles.get(data.style) and data.style or nil
+    local ap = data.ap == true and PLACE.Posts == true
+    local bp = data.bp == true and PLACE.Posts == true
+    local ah = ap and holder.resolve(data.ah).id or nil
+    local bh = bp and holder.resolve(data.bh).id or nil
 
     local owner, ownerName
     if not skipChecks then
         if not access.canUse(src) then return nil, t('notify.no_permission') end
+        -- What the admin menu has taken away (scripts placing tape through the export are not held to it).
+        if style and not settings.styleAllowed(style) then return nil, t('notify.style_unavailable') end
+        -- A new post or cone must be one players may stand; tying to one already there always works.
+        if (ap and #endsAt(a) == 0 and not settings.holderAllowed(ah)) or (bp and #endsAt(b) == 0 and not settings.holderAllowed(bh)) then
+            return nil, t('notify.holder_unavailable')
+        end
         local me, ped = pedPos(src)
         if not me then return nil, t('notify.too_far') end
         if PLACE.OnFoot and GetVehiclePedIsIn(ped, false) ~= 0 then return nil, t('notify.in_vehicle') end
@@ -197,21 +217,20 @@ local function placeTape(src, data, skipChecks)
         if store.countBy(owner) >= LIMITS.PerPlayer then return nil, t('notify.limit_player', { max = LIMITS.PerPlayer }) end
     end
     if store.count() >= LIMITS.Total then return nil, t('notify.limit_server') end
+    style = style or (not skipChecks and settings.firstStyle()) or styles.fallback()
 
-    if not skipChecks and itemOn and ITEM.Consume then
+    if not skipChecks and itemOn() and ITEM.Consume then
         if not inventory.remove(src, ITEM.Name, 1) then return nil, t('notify.no_item') end
     end
 
-    local ap = data.ap == true and PLACE.Posts == true
-    local bp = data.bp == true and PLACE.Posts == true
     local tape = store.add({
         style = style,
         a = { x = a.x, y = a.y, z = a.z },
         b = { x = b.x, y = b.y, z = b.z },
         ap = ap,
         bp = bp,
-        ah = ap and holder.resolve(data.ah).id or nil,
-        bh = bp and holder.resolve(data.bh).id or nil,
+        ah = ah,
+        bh = bh,
         af = ap and fallAt(a) or nil,
         bf = bp and fallAt(b) or nil,
         owner = owner,
@@ -255,7 +274,7 @@ RegisterNetEvent('sd-policetape:server:remove', function(id)
     removeTapes({ tape.id })
     tell(src, 'notify.removed', nil, 'success')
 
-    if itemOn and ITEM.Consume and ITEM.Refund and tape.owner == (player.getIdentifier(src) or ('src:' .. src)) then
+    if itemOn() and ITEM.Consume and ITEM.Refund and tape.owner == (player.getIdentifier(src) or ('src:' .. src)) then
         if inventory.add(src, ITEM.Name, 1) then tell(src, 'notify.refunded', nil, 'inform') end
     end
 end)
@@ -265,6 +284,7 @@ RegisterNetEvent('sd-policetape:server:restyle', function(id, style)
     local tape = store.get(id)
     if not tape then return tell(src, 'notify.not_found') end
     if type(style) ~= 'string' or not styles.get(style) then return tell(src, 'notify.unknown_style') end
+    if not settings.styleAllowed(style) then return tell(src, 'notify.style_unavailable') end
     if not mayTouch(src, tape) then return tell(src, 'notify.no_permission') end
     if not nearTape(src, tape) then return tell(src, 'notify.too_far') end
     if not allow(src, 'restyle', 30, 60) then return tell(src, 'notify.rate_limited') end
@@ -471,6 +491,8 @@ local function clearNear(coords, radius)
     removeTapes(ids)
     return #ids
 end
+
+admin.init({ removeTapes = removeTapes, tell = tell })
 
 lib.addCommand(config.Commands.Clear, {
     help = 'Take down police tape near you, or everywhere',

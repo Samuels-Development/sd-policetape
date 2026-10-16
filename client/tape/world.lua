@@ -602,8 +602,6 @@ end
 local tearCfg = config.Tear
 local PEOPLE_PUSH = tearCfg.PeoplePush or 1.0
 local VEHICLE_PUSH = tearCfg.VehiclePush or 1.8
-local PEOPLE_BREAK = tearCfg.Enabled and tearCfg.People ~= false
-local PEOPLE_HOLD = tearCfg.People == false
 
 ---Tears a tape here at once and tells the server, which checks it and tells everyone else.
 local function snap(t, c, node, net, byPed)
@@ -643,6 +641,9 @@ world.resist = resist
 ---off them and springs back instead; with Tear.People off it stops them there). Passers-by
 ---neither respect tape nor get to break it: it slides off them.
 local function onPeople(t, c)
+    -- (read each time: an admin can switch tearing on and off while the server runs)
+    local PEOPLE_BREAK = tearCfg.Enabled and tearCfg.People ~= false
+    local PEOPLE_HOLD = tearCfg.People == false
     for k = 1, c.ntouched do
         local col = c.touched[k]
         if col.kind == 1 then

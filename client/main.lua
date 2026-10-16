@@ -8,7 +8,9 @@ local atlas = require 'client.tape.atlas'
 local world = require 'client.tape.world'
 local nui = require 'client.nui'
 local place = require 'client.place'
+local settings = require 'shared.settings'
 require 'client.look'
+require 'client.admin'
 
 local function t(key, vars) return locale.t(key, vars) end
 
@@ -16,6 +18,17 @@ local function setStyles(list)
     state.setStyles(list)
     atlas.setStyles(list)
     nui.setStyles(list, state.perms.studio)
+end
+
+---What the admin menu has set: its switches go into this client's config (everything reads the
+---config as it goes, so they work at once), and what players cannot put up into the state.
+local function setSettings(s)
+    if type(s) ~= 'table' then return end
+    settings.apply(config, s.toggles)
+    state.setOff(s.offStyles, s.offHolders)
+    local off = {}
+    for id in pairs(state.off.styles) do off[#off + 1] = id end
+    nui.setOff(off)
 end
 
 local function setPerms(perms)
@@ -32,6 +45,7 @@ local function loadState()
         return
     end
     setPerms(s.perms)
+    setSettings(s.settings)
     setStyles(s.styles or {})
     world.load(s.tapes or {})
     log.debug('main', '%d styles, %d tapes', #(s.styles or {}), #(s.tapes or {}))
@@ -63,6 +77,8 @@ RegisterNetEvent('sd-policetape:client:standup', function(x, y, z) world.standUp
 RegisterNetEvent('sd-policetape:client:styles', function(list) setStyles(list or {}) end)
 
 RegisterNetEvent('sd-policetape:client:perms', setPerms)
+
+RegisterNetEvent('sd-policetape:client:settings', setSettings)
 
 RegisterNetEvent('sd-policetape:client:startPlacing', function(style) place.start(style) end)
 
@@ -123,6 +139,7 @@ AddEventHandler('sd-policetape:client:openStudio', openStudio)
 TriggerEvent('chat:addSuggestion', '/' .. config.Commands.Place, 'Place police tape')
 TriggerEvent('chat:addSuggestion', '/' .. config.Commands.Styles, 'Choose the police tape style you place with')
 TriggerEvent('chat:addSuggestion', '/' .. config.Commands.Studio, 'Make new police tape styles')
+TriggerEvent('chat:addSuggestion', '/' .. config.Commands.Admin, 'Police tape admin menu')
 
 -- Diagnostics: `sdtape_dbg` prints what the client has; `sdtape_dbg winding ccw|cw|both` changes how tape is drawn, for this session only. Harmless to leave in: it
 -- only ever changes what this one player sees.

@@ -23,9 +23,9 @@ server_scripts {
 }
 
 --[[
-    Two pages. web/build/ui.html is the interface (the prompt while placing or looking at tape,
-    the style picker, the Tape Studio). web/build/atlas.html is never seen: a DUI loads it and
-    every tape in the world is drawn from its canvas (client/tape/atlas.lua).
+    Two pages. web/build/ui.html is the interface (the prompt while placing or editing tape, the
+    style picker, the holder menu, the Tape Studio, the admin menu). web/build/atlas.html is never
+    seen: a DUI loads it and every tape in the world is drawn from its canvas (client/tape/atlas.lua).
 
     The post, the twenty cones and the roll in your hand stream from stream/ (made by
     tools/build_props.py and tools/build_cones.py). Every one of them in the world belongs to this
@@ -56,6 +56,7 @@ files {
     'web/build/assets/*.js',
     'web/build/assets/*.css',
     'web/build/assets/*.woff2',
+    'images/holders/*.png', -- the holder menu's pictures (tools/build_holder_icons.py)
 }
 
 dependencies {

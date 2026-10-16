@@ -1,6 +1,8 @@
----Looking at a tape: its name comes up, a key changes its style, holding another takes it down.
----Both keys are rebindable (Settings > Key Bindings > FiveM) and each has a controller binding
----as well. Standing at a knocked-over post or cone, the same hold stands it back up.
+---Looking at a tape: a text prompt says it can be edited, and the edit key opens its popup (its
+---name and print, change its style, hold to take it down). A knocked-over post or cone works the
+---same way: the prompt, then the popup, then hold to stand it back up. Nothing pops up just for
+---walking past. Both keys are rebindable (Settings > Key Bindings > FiveM) and each has a
+---controller binding as well.
 local config = require 'configs.config'
 local locale = require 'bridge.shared.locale'
 local state = require 'client.state'
@@ -12,21 +14,30 @@ local KEYS = config.Keys
 local HOLD = config.Holders or {}
 local look = { tape = nil }
 
+local C_CLOSE = 177 -- INPUT_CELLPHONE_CANCEL: Backspace / B
+local LOSE_MS = 700 -- the popup stays this long once its tape has left the crosshair
+
 local function t(key, vars) return locale.t(key, vars) end
 
-local holding = false
+local holding, pressed = false, false
 local progress = 0.0
 
-RegisterCommand('+sdtape_remove', function() holding = true end, false)
+RegisterCommand('+sdtape_remove', function() holding, pressed = true, true end, false)
 RegisterCommand('-sdtape_remove', function() holding = false end, false)
-RegisterKeyMapping('+sdtape_remove', 'Police tape: hold to take down', 'keyboard', KEYS.Remove)
-RegisterCommand('+sdtape_remove_pad', function() holding = true end, false)
+RegisterKeyMapping('+sdtape_remove', 'Police tape: edit, hold to take down', 'keyboard', KEYS.Remove)
+RegisterCommand('+sdtape_remove_pad', function() holding, pressed = true, true end, false)
 RegisterCommand('-sdtape_remove_pad', function() holding = false end, false)
-RegisterKeyMapping('+sdtape_remove_pad', 'Police tape: hold to take down (controller)', 'PAD_DIGITALBUTTON', KEYS.PadRemove)
+RegisterKeyMapping('+sdtape_remove_pad', 'Police tape: edit, hold to take down (controller)', 'PAD_DIGITALBUTTON', KEYS.PadRemove)
+
+-- The popup that is up: for a tape (`id`) or for the holder at end `which` of tape `id`. A hold
+-- only counts once the key has been let go since the popup opened (`armed`), so the press that
+-- opens it never takes the tape down as well.
+local edit = nil ---@type { kind: 'tape'|'fallen', id: integer, which: string|nil, label: string|nil, armed: boolean, lostAt: integer|nil }|nil
 
 local function restyle()
-    local tape = look.tape
-    if not tape or nui.busy() or place.active then return end
+    if not edit or edit.kind ~= 'tape' or nui.busy() or place.active then return end
+    local tape = world.get(edit.id)
+    if not tape then return end
     local id = tape.id
     nui.openPicker(tape.style, function(style)
         if style and style ~= tape.style then
@@ -36,7 +47,7 @@ local function restyle()
 end
 
 RegisterCommand('sdtape_restyle', restyle, false)
-RegisterKeyMapping('sdtape_restyle', 'Police tape: change style of the tape you look at', 'keyboard', KEYS.Restyle)
+RegisterKeyMapping('sdtape_restyle', 'Police tape: change style of the tape you are editing', 'keyboard', KEYS.Restyle)
 RegisterCommand('sdtape_restyle_pad', restyle, false)
 RegisterKeyMapping('sdtape_restyle_pad', 'Police tape: change style (controller)', 'PAD_DIGITALBUTTON', KEYS.PadRestyle)
 
@@ -59,11 +70,34 @@ local function keyName(command, default, padCommand, padDefault)
     return FRIENDLY[k] or k
 end
 
+local function closeKey()
+    return IsUsingKeyboard(0) and 'Backspace' or 'B'
+end
+
+-- The text prompt (ox_lib's text UI). Only ever hides one this file put up.
+local shown = nil
+local function prompt(text)
+    if text == shown then return end
+    if text then
+        lib.showTextUI(text, { icon = 'tape' })
+    else
+        local open, current = lib.isTextUIOpen()
+        if open and (current == nil or current == shown) then lib.hideTextUI() end
+    end
+    shown = text
+end
+
 local function camDir()
     local rot = GetFinalRenderedCamRot(2)
     local x, z = math.rad(rot.x), math.rad(rot.z)
     local c = math.abs(math.cos(x))
     return vector3(-math.sin(z) * c, math.cos(z) * c, math.sin(x))
+end
+
+local function closeEdit()
+    edit = nil
+    progress = 0.0
+    nui.progress(0)
 end
 
 CreateThread(function()
@@ -75,8 +109,11 @@ CreateThread(function()
         last = now
 
         local ped = PlayerPedId()
+        local able = state.perms.use and not place.active and IsPedOnFoot(ped) and not IsEntityDead(ped)
+        local busy = nui.busy()
+
         local tape, fallen, fallenTape, fallenEnd = nil, nil, nil, nil
-        if state.perms.use and not place.active and not nui.busy() and IsPedOnFoot(ped) and not IsEntityDead(ped) then
+        if able and not busy then
             local cam = GetFinalRenderedCamCoord()
             local reach = 4.0 + #(cam - GetEntityCoords(ped))
             tape = world.pick(cam, camDir(), reach, 0.22)
@@ -85,71 +122,105 @@ CreateThread(function()
                 fallen, fallenTape, fallenEnd = world.fallenNear(p.x, p.y, p.z, f.x, f.y, 1.8)
             end
         end
-
-        local target = tape or fallen
-        if target ~= look.target then
-            progress = 0.0
-            nui.progress(0)
-        end
-        look.target = target
         look.tape = tape
 
-        if tape then
-            wait = 0
-            local style = state.style(tape.style)
-            local keys = {
-                { k = keyName('sdtape_restyle', KEYS.Restyle, 'sdtape_restyle_pad', KEYS.PadRestyle), t = t('ui.hud.change_style') },
-                { k = keyName('+sdtape_remove', KEYS.Remove, '+sdtape_remove_pad', KEYS.PadRemove), t = t('ui.hud.take_down') },
-            }
-            nui.hud({
-                mode = 'look',
-                styleId = tape.style,
-                title = style and style.label or nil,
-                line = tape.torn and t('ui.hud.torn') or nil,
-                lineKind = 'warn',
-                keys = keys,
-            })
-
-            if holding then
-                progress = progress + dt * 1000.0 / KEYS.HoldTime
-                if progress >= 1.0 then
-                    TriggerServerEvent('sd-policetape:server:remove', tape.id)
-                    holding = false
-                    progress = 0.0
-                end
+        -- The popup that is up: still for what is in front of the player?
+        if edit and not able then closeEdit() end
+        if edit and not busy then
+            local same
+            if edit.kind == 'tape' then
+                same = tape ~= nil and tape.id == edit.id
             else
-                progress = math.max(0.0, progress - dt * 3.0)
+                same = fallen ~= nil and fallenTape == edit.id and fallenEnd == edit.which
             end
-            nui.progress(progress)
-        elseif fallen then
-            wait = 0
-            local tied = world.get(fallenTape)
-            nui.hud({
-                mode = 'look',
-                styleId = tied and tied.style or state.defaultStyle(),
-                title = fallen.def.label,
-                line = t('ui.hud.knocked_over'),
-                lineKind = 'warn',
-                keys = { { k = keyName('+sdtape_remove', KEYS.Remove, '+sdtape_remove_pad', KEYS.PadRemove), t = t('ui.hud.stand_up') } },
-            })
-
-            if holding then
-                progress = progress + dt * 1000.0 / KEYS.HoldTime
-                if progress >= 1.0 then
-                    TriggerServerEvent('sd-policetape:server:standup', fallenTape, fallenEnd)
-                    holding = false
-                    progress = 0.0
-                end
+            if same then
+                edit.lostAt = nil
             else
-                progress = math.max(0.0, progress - dt * 3.0)
+                edit.lostAt = edit.lostAt or now
+                if now - edit.lostAt > LOSE_MS then closeEdit() end
             end
-            nui.progress(progress)
-        elseif not place.active and not nui.busy() then
-            nui.hud(nil)
+            if edit and edit.kind == 'tape' and not world.get(edit.id) then closeEdit() end
         end
+
+        -- Opening it: the edit key, while the prompt is up.
+        if not edit and pressed and able and not busy and (tape or fallen) then
+            if tape then
+                edit = { kind = 'tape', id = tape.id, armed = false }
+            elseif fallen and fallenTape then
+                edit = { kind = 'fallen', id = fallenTape, which = fallenEnd, label = fallen.def.label, armed = false }
+            end
+            progress = 0.0
+        end
+        pressed = false
+        if edit and not holding then edit.armed = true end
+
+        if edit and not busy then
+            wait = 0
+            DisableControlAction(0, C_CLOSE, true)
+            if IsDisabledControlJustPressed(0, C_CLOSE) then closeEdit() end
+        end
+
+        if edit and not busy then
+            prompt(nil)
+            local removeKey = keyName('+sdtape_remove', KEYS.Remove, '+sdtape_remove_pad', KEYS.PadRemove)
+            if edit.kind == 'tape' then
+                local tp = world.get(edit.id)
+                local style = tp and state.style(tp.style)
+                nui.hud({
+                    mode = 'look',
+                    styleId = tp and tp.style or state.defaultStyle(),
+                    title = style and style.label or nil,
+                    line = tp and tp.torn and t('ui.hud.torn') or nil,
+                    lineKind = 'warn',
+                    keys = {
+                        { k = keyName('sdtape_restyle', KEYS.Restyle, 'sdtape_restyle_pad', KEYS.PadRestyle), t = t('ui.hud.change_style') },
+                        { k = removeKey, t = t('ui.hud.take_down') },
+                        { k = closeKey(), t = t('ui.hud.close') },
+                    },
+                })
+            else
+                local tied = world.get(edit.id)
+                nui.hud({
+                    mode = 'look',
+                    styleId = tied and tied.style or state.defaultStyle(),
+                    title = edit.label,
+                    line = t('ui.hud.knocked_over'),
+                    lineKind = 'warn',
+                    keys = { { k = removeKey, t = t('ui.hud.stand_up') }, { k = closeKey(), t = t('ui.hud.close') } },
+                })
+            end
+
+            if holding and edit.armed then
+                progress = progress + dt * 1000.0 / KEYS.HoldTime
+                if progress >= 1.0 then
+                    if edit.kind == 'tape' then
+                        TriggerServerEvent('sd-policetape:server:remove', edit.id)
+                    else
+                        TriggerServerEvent('sd-policetape:server:standup', edit.id, edit.which)
+                    end
+                    closeEdit()
+                end
+            else
+                progress = math.max(0.0, progress - dt * 3.0)
+            end
+            if edit then nui.progress(progress) end
+        elseif not edit and able and not busy and (tape or fallen) then
+            wait = 0
+            local key = keyName('+sdtape_remove', KEYS.Remove, '+sdtape_remove_pad', KEYS.PadRemove)
+            local label = tape and t('ui.hud.edit_tape') or t('ui.hud.stand_prompt', { name = fallen and fallen.def.label or '' })
+            prompt(('[%s] %s'):format(key, label))
+        else
+            prompt(nil)
+        end
+
+        if not edit and not place.active and not busy then nui.hud(nil) end
 
         Wait(wait)
     end
+end)
+
+AddEventHandler('onResourceStop', function(res)
+    if res == GetCurrentResourceName() then prompt(nil) end
 end)
 
 return look

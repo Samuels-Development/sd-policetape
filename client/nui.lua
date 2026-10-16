@@ -1,6 +1,6 @@
----The bridge to web/build/ui.html: the HUD prompt (no focus), the style picker and the Tape
----Studio (both with focus). Also hears the atlas page say it is ready (atlas.html posts to this
----resource's NUI callbacks like any other page of ours).
+---The bridge to web/build/ui.html: the HUD prompt (no focus); the style picker, the holder menu,
+---the Tape Studio and the admin menu (all with focus). Also hears the atlas page say it is ready
+---(atlas.html posts to this resource's NUI callbacks like any other page of ours).
 local config = require 'configs.config'
 local atlas = require 'client.tape.atlas'
 
@@ -8,9 +8,11 @@ local nui = {}
 
 local ready = false
 local queue = {}
-local styles, canStudio = {}, false
+local styles, canStudio, offStyles = {}, false, {}
 local picker = nil ---@type { choose: fun(id: string|nil), hover: fun(id: string)|nil }|nil
+local holders = nil ---@type { choose: fun(id: string|nil), hover: fun(id: string)|nil }|nil
 local studioOpen = false
+local adminOpen = false
 local lastHud = nil
 
 local function send(msg)
@@ -19,6 +21,12 @@ local function send(msg)
     else
         queue[#queue + 1] = msg
     end
+end
+nui.send = send
+
+---Lets go of the mouse once nothing that needs it is open any more.
+local function releaseFocus()
+    if not picker and not holders and not studioOpen and not adminOpen then SetNuiFocus(false, false) end
 end
 
 ---The "ui" part of the configured locale (the page has English built in for anything missing).
@@ -33,7 +41,7 @@ end
 RegisterNUICallback('uiReady', function(_, cb)
     cb(1)
     ready = true
-    SendNUIMessage({ action = 'init', locale = uiWords(), styles = styles, canStudio = canStudio })
+    SendNUIMessage({ action = 'init', locale = uiWords(), styles = styles, canStudio = canStudio, off = offStyles })
     for i = 1, #queue do SendNUIMessage(queue[i]) end
     queue = {}
 end)
@@ -52,6 +60,12 @@ function nui.setCanStudio(studio)
     if canStudio == (studio == true) then return end
     canStudio = studio == true
     send({ action = 'styles', styles = styles, canStudio = canStudio })
+end
+
+---The styles players cannot put up (the picker leaves them out).
+function nui.setOff(list)
+    offStyles = list or {}
+    send({ action = 'off', styles = offStyles })
 end
 
 ---Shows (or with nil, hides) the prompt. Repeated identical states are not re-sent.
@@ -93,7 +107,7 @@ end
 local function closePicker(id)
     local p = picker
     picker = nil
-    if not studioOpen then SetNuiFocus(false, false) end
+    releaseFocus()
     send({ action = 'picker', open = false })
     if p then p.choose(id) end
 end
@@ -114,6 +128,51 @@ RegisterNUICallback('pickerClose', function(_, cb)
     closePicker(nil)
 end)
 
+-- Holder menu: the post or cone a new end stands on, with a picture of each ---------------------
+
+---Opens the holder menu over `list` ({ id, label, image, height }[]). `choose` gets the chosen id,
+---or nil when it is closed without one; `hover` the one under the pointer, as it moves.
+function nui.openHolders(list, selected, choose, hover)
+    if #list == 0 then
+        choose(nil)
+        return
+    end
+    if holders then holders.choose(nil) end
+    holders = { choose = choose, hover = hover }
+    nui.hud(nil)
+    SetNuiFocus(true, true)
+    send({ action = 'holders', open = true, list = list, selected = selected })
+end
+
+local function closeHolders(id)
+    local h = holders
+    holders = nil
+    releaseFocus()
+    send({ action = 'holders', open = false })
+    if h then h.choose(id) end
+end
+
+RegisterNUICallback('holdersChoose', function(data, cb)
+    cb(1)
+    closeHolders(type(data) == 'table' and type(data.id) == 'string' and data.id or nil)
+end)
+
+RegisterNUICallback('holdersHover', function(data, cb)
+    cb(1)
+    if holders and holders.hover and type(data) == 'table' and type(data.id) == 'string' then holders.hover(data.id) end
+end)
+
+RegisterNUICallback('holdersClose', function(_, cb)
+    cb(1)
+    closeHolders(nil)
+end)
+
+---Closes the picker or the holder menu, whichever is open, as if closed without a choice.
+function nui.closeMenus()
+    if picker then closePicker(nil) end
+    if holders then closeHolders(nil) end
+end
+
 -- Studio ----------------------------------------------------------------------------------------
 
 function nui.openStudio(startFrom)
@@ -127,7 +186,7 @@ end
 
 function nui.closeStudio()
     studioOpen = false
-    SetNuiFocus(false, false)
+    releaseFocus()
     send({ action = 'studio', open = false })
 end
 
@@ -139,7 +198,7 @@ end)
 RegisterNUICallback('studioClose', function(_, cb)
     cb(1)
     studioOpen = false
-    SetNuiFocus(false, false)
+    releaseFocus()
 end)
 
 RegisterNUICallback('studioSave', function(data, cb)
@@ -156,9 +215,33 @@ RegisterNUICallback('studioDelete', function(data, cb)
     send({ action = 'studioResult', ok = res.ok == true, error = res.error })
 end)
 
----Whether the picker or the studio has the mouse.
+-- Admin menu (its callbacks are in client/admin.lua) ---------------------------------------------
+
+function nui.openAdmin(snapshot)
+    nui.closeMenus()
+    adminOpen = true
+    nui.hud(nil)
+    SetNuiFocus(true, true)
+    send({ action = 'admin', open = true, snapshot = snapshot })
+end
+
+function nui.adminSnapshot(snapshot)
+    if adminOpen then send({ action = 'adminSnapshot', snapshot = snapshot }) end
+end
+
+function nui.closeAdmin()
+    adminOpen = false
+    releaseFocus()
+    send({ action = 'admin', open = false })
+end
+
+function nui.adminIsOpen()
+    return adminOpen
+end
+
+---Whether the picker, the holder menu, the studio or the admin menu has the mouse.
 function nui.busy()
-    return picker ~= nil or studioOpen
+    return picker ~= nil or holders ~= nil or studioOpen or adminOpen
 end
 
 AddEventHandler('onResourceStop', function(res)

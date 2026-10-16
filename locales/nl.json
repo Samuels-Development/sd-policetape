@@ -21,7 +21,12 @@
     "studio_invalid": "Deze stijl kon niet worden opgeslagen: {reason}.",
     "studio_full": "Er zijn al {max} eigen stijlen. Verwijder er eerst een.",
     "unknown_style": "Die lintstijl bestaat niet.",
-    "not_found": "Dat lint hangt er niet meer."
+    "not_found": "Dat lint hangt er niet meer.",
+    "style_unavailable": "Die lintstijl is niet beschikbaar.",
+    "holder_unavailable": "Die paal of pion is niet beschikbaar.",
+    "admin_invalid": "Dat lukte niet.",
+    "admin_last_style": "Er moet minstens één lintstijl beschikbaar blijven.",
+    "admin_last_holder": "Er moet minstens één paal of pion beschikbaar blijven."
   },
   "ui": {
     "categories": {
@@ -61,7 +66,10 @@
       "torn": "Gescheurd",
       "holder_here": "Hier komt: {name}",
       "knocked_over": "Omgevallen",
-      "stand_up": "Ingedrukt houden om rechtop te zetten"
+      "stand_up": "Ingedrukt houden om rechtop te zetten",
+      "edit_tape": "Lint bewerken",
+      "stand_prompt": "Weer rechtzetten",
+      "close": "Sluiten"
     },
     "picker": {
       "title": "Lintstijlen",

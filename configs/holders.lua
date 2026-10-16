@@ -15,6 +15,9 @@
       body       { bottom, radius there, top, radius there }: the solid a torn tape hangs against
       base       { radius (half the width of a square one), height, square }: the foot. Torn tape
                  lies on top of it, and it tips over its edge when knocked down.
+      image      optional: its picture in the holder menu. Default images/holders/<id>.png, which
+                 tools/build_holder_icons.py renders for the post and the cones; give a holder of
+                 your own a nui:// or https:// address (or add its png there).
 
     Remove any you do not want. A tape tied to a holder that is no longer listed keeps standing
     on the first one.

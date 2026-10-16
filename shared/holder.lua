@@ -17,6 +17,7 @@ local holder = {}
 ---@field id string
 ---@field label string
 ---@field model string
+---@field image string picture in the holder menu: images/holders/<id>.png unless the config names one
 ---@field tie number
 ---@field tieRadius number
 ---@field body number[] { z0, r0, z1, r1 }
@@ -52,6 +53,8 @@ for _, raw in ipairs(require 'configs.holders') do
     if type(raw) == 'table' and type(raw.id) == 'string' and not byId[raw.id] then
         local def = {
             id = raw.id, label = raw.label or raw.id, model = raw.model,
+            -- (relative to web/build/ui.html, the page that shows it; a nui:// or https:// address works too)
+            image = type(raw.image) == 'string' and raw.image or ('../../images/holders/%s.png'):format(raw.id),
             tie = raw.tie, tieRadius = raw.tieRadius, body = raw.body, base = raw.base,
         }
         def.rest, def.lift = holder.restOf(def)

@@ -21,7 +21,12 @@
     "studio_invalid": "Ce style n'a pas pu être enregistré : {reason}.",
     "studio_full": "Il y a déjà {max} styles personnels. Supprimez-en un d'abord.",
     "unknown_style": "Ce style de rubalise n'existe pas.",
-    "not_found": "Cette rubalise n'est plus là."
+    "not_found": "Cette rubalise n'est plus là.",
+    "style_unavailable": "Ce style de ruban n'est pas disponible.",
+    "holder_unavailable": "Ce poteau ou ce cône n'est pas disponible.",
+    "admin_invalid": "Impossible de faire cela.",
+    "admin_last_style": "Au moins un style de ruban doit rester disponible.",
+    "admin_last_holder": "Au moins un poteau ou un cône doit rester disponible."
   },
   "ui": {
     "categories": {
@@ -61,7 +66,10 @@
       "torn": "Arrachée",
       "holder_here": "Posé ici : {name}",
       "knocked_over": "Renversé",
-      "stand_up": "Maintenir pour le redresser"
+      "stand_up": "Maintenir pour le redresser",
+      "edit_tape": "Modifier le ruban",
+      "stand_prompt": "Le relever",
+      "close": "Fermer"
     },
     "picker": {
       "title": "Styles de rubalise",

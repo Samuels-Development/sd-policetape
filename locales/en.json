@@ -21,7 +21,12 @@
     "studio_invalid": "That style could not be saved: {reason}.",
     "studio_full": "There are already {max} custom styles. Delete one first.",
     "unknown_style": "That tape style does not exist.",
-    "not_found": "That tape is not there any more."
+    "not_found": "That tape is not there any more.",
+    "style_unavailable": "That tape style is not available.",
+    "holder_unavailable": "That post or cone is not available.",
+    "admin_invalid": "That could not be done.",
+    "admin_last_style": "At least one tape style has to stay available.",
+    "admin_last_holder": "At least one post or cone has to stay available."
   },
   "ui": {
     "categories": {
@@ -61,7 +66,10 @@
       "torn": "Torn",
       "holder_here": "{name} goes here",
       "knocked_over": "Knocked over",
-      "stand_up": "Hold to stand it up"
+      "stand_up": "Hold to stand it up",
+      "edit_tape": "Edit tape",
+      "stand_prompt": "Stand it up",
+      "close": "Close"
     },
     "picker": {
       "title": "Tape styles",
@@ -139,6 +147,170 @@
       "subtitle": "Make tape styles for everyone on this server",
       "details": "Details",
       "look": "Colours and pattern"
+    },
+    "holders": {
+      "title": "Posts and cones",
+      "count": "{count} to choose from",
+      "search": "Search posts and cones",
+      "empty": "Nothing matches \"{query}\"",
+      "tall": "{height} tall",
+      "close": "Close",
+      "choose": "choose",
+      "use": "use",
+      "exit": "close"
+    },
+    "admin": {
+      "title": "Police tape",
+      "subtitle": "Every tape on the server, and what police can put up",
+      "tabs": {
+        "tapes": "Tapes",
+        "styles": "Styles",
+        "holders": "Posts and cones",
+        "settings": "Settings"
+      },
+      "common": {
+        "just_now": "just now",
+        "ago": "{time} ago",
+        "cancel": "Cancel",
+        "confirm": "Confirm",
+        "close": "Close",
+        "all": "All",
+        "on": "On",
+        "off": "Off",
+        "changed": "Changed",
+        "changed_hint": "Changed here; the config says {value}",
+        "failed": "That did not work"
+      },
+      "tapes": {
+        "title": "Tapes",
+        "of_total": "{count} of {total}",
+        "search": "Search by style, who put it up, street or #id",
+        "filter_all": "All",
+        "filter_up": "Up",
+        "filter_torn": "Torn",
+        "empty": "No tape is up on the server.",
+        "no_match": "No tape matches that.",
+        "by_script": "a script",
+        "torn": "Torn",
+        "down": "Knocked over",
+        "length": "{length} m",
+        "away": "{distance} m away",
+        "remove_torn": "Take down torn",
+        "remove_all": "Take down all",
+        "teleport": "Go to it",
+        "waypoint": "Waypoint",
+        "remove": "Take it down",
+        "confirm_all_title": "Take down all tape?",
+        "confirm_all_body": "All {count} tapes on the server come down, for everyone. This cannot be undone.",
+        "confirm_torn_title": "Take down torn tape?",
+        "confirm_torn_body": "{count} torn tapes come down, for everyone.",
+        "confirm_go": "Take down",
+        "toast_removed": "Tape #{id} taken down",
+        "toast_waypoint": "Waypoint set to tape #{id}"
+      },
+      "styles": {
+        "title": "Styles",
+        "hint": "Switch a style off and it is left out of the style picker for everyone, admins included. Tape already up in it stays as it is.",
+        "search": "Search styles",
+        "filter_all": "All",
+        "filter_on": "Available",
+        "filter_off": "Off",
+        "available": "{on} of {total} available",
+        "all_on": "All on",
+        "all_off": "All off",
+        "custom": "Tape Studio",
+        "no_match": "No style matches that.",
+        "toast_on": "\"{name}\" is available",
+        "toast_off": "\"{name}\" is switched off",
+        "toast_group_on": "{group}: all available",
+        "toast_group_off": "{group}: all switched off"
+      },
+      "holders": {
+        "title": "Posts and cones",
+        "hint": "Police pick from these with H while placing. Switch one off and it can no longer be put up; ones already standing stay, and tape can still be tied to them.",
+        "available": "{on} of {total} available",
+        "all_on": "All on",
+        "all_off": "All off",
+        "tall": "{height} tall",
+        "toast_on": "{name} is available",
+        "toast_off": "{name} is switched off",
+        "toast_all_on": "All posts and cones are available",
+        "toast_all_off": "Switched off all but one"
+      },
+      "settings": {
+        "title": "Settings",
+        "hint": "These change the config while the server runs, for everyone at once, and are kept in data/settings.json. Set one back to what the config says and it is no longer kept.",
+        "groups": {
+          "tape": "Tape",
+          "holders": "Posts and cones",
+          "placing": "Placing",
+          "item": "Item"
+        },
+        "toast_on": "{name}: on",
+        "toast_off": "{name}: off",
+        "toggles": {
+          "Tear_Enabled": {
+            "label": "Tape can break",
+            "hint": "Vehicles driving through it and people pushing hard snap it, for everyone. Off: it slips off whatever pushes it and springs back into line."
+          },
+          "Tear_People": {
+            "label": "People can break tape",
+            "hint": "Someone pushing through tape on foot snaps it. Off: tape holds people back instead."
+          },
+          "Physics_Enabled": {
+            "label": "Tape gives way",
+            "hint": "Tape bows round people and vehicles pushing into it. Off: tape never moves (no pushing, no tearing); wind still sways it."
+          },
+          "Wind_Enabled": {
+            "label": "Wind",
+            "hint": "Tape sways and twists in the game's wind."
+          },
+          "Holders_Knock": {
+            "label": "Posts and cones can be knocked over",
+            "hint": "One knocked over goes down for everybody, and its tape with it."
+          },
+          "Holders_Vehicles": {
+            "label": "Vehicles knock them over",
+            "hint": "A vehicle driving into one knocks it over and sends it along the road."
+          },
+          "Holders_Kick": {
+            "label": "Kicks knock them over",
+            "hint": "A kick or a punch right at one knocks it over."
+          },
+          "Holders_Run": {
+            "label": "Running into them knocks them over",
+            "hint": "Walking into one only bumps against it."
+          },
+          "Holders_StandUp": {
+            "label": "They can be stood back up",
+            "hint": "Anyone allowed to use tape can stand a knocked-over post or cone back up."
+          },
+          "Placement_Posts": {
+            "label": "Posts and cones on open ground",
+            "hint": "Aiming at open ground stands a post or cone there to tie to. Off: tape only ties to walls, poles and trees."
+          },
+          "Placement_Chain": {
+            "label": "Keep going after tying off",
+            "hint": "The next stretch starts where the last one ended, until Done."
+          },
+          "Access_OthersTapes": {
+            "label": "Take down anyone's tape",
+            "hint": "Off: players take down only tape they put up themselves (admins any)."
+          },
+          "Item_Enabled": {
+            "label": "Needs a roll of police tape",
+            "hint": "Placing tape needs the tape item in the inventory."
+          },
+          "Item_Consume": {
+            "label": "Uses up a roll per stretch",
+            "hint": "One roll is taken for every stretch of tape put up."
+          },
+          "Item_Refund": {
+            "label": "Gives the roll back",
+            "hint": "With rolls used up: taking down your own tape gives the roll back."
+          }
+        }
+      }
     }
   }
 }

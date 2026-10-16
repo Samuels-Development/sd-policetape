@@ -537,3 +537,337 @@ input {
     animation: none;
   }
 }
+
+/* ---- The admin menu and the holder menu ---------------------------------------------------------
+   sd-computers' admin panel (itself sd-bombs'), class for class: the switch, the tick, the sliding
+   tab underline, list rows with their actions, our scrollbar, the skeleton and the motion. Where a
+   name above means something else here (the picker's rows, the HUD's keys), the admin menu's take
+   is scoped to .sc-admin. */
+:root {
+  --ok-soft: rgba(62, 207, 115, 0.12);
+  --warn-soft: rgba(229, 163, 59, 0.12);
+}
+
+@layer components {
+  .sc-btn--on {
+    background: var(--surface-3);
+    border-color: rgba(255, 255, 255, 0.18);
+  }
+
+  .sc-switch {
+    position: relative;
+    width: 30px;
+    height: 18px;
+    flex-shrink: 0;
+    border-radius: 999px;
+    border: none;
+    background: rgba(255, 255, 255, 0.14);
+    transition: background 0.15s var(--ease);
+  }
+  .sc-switch::after {
+    content: '';
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: #ededef;
+    transition: transform 0.15s var(--ease);
+  }
+  .sc-switch[data-on='true'] {
+    background: var(--ok);
+  }
+  .sc-switch[data-on='true']::after {
+    transform: translateX(12px);
+  }
+  .sc-switch:disabled {
+    opacity: 0.4;
+  }
+
+  .sc-tab-underline {
+    transition: left 0.22s var(--ease), width 0.22s var(--ease);
+  }
+  .sc-admin .sc-tab {
+    height: 40px;
+    padding: 0 10px;
+  }
+  .sc-admin .sc-tab[data-on='true']::after {
+    content: none;
+  }
+
+  .sc-admin .sc-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-height: 52px;
+    padding: 9px calc(10px + var(--sa-gutter, 0px)) 9px 14px; /* (clear of the scrollbar while the list scrolls) */
+    transition: background 0.12s var(--ease), padding 0.2s var(--ease);
+  }
+  .sc-admin .sc-list > .sc-row + .sc-row,
+  .sc-admin .sc-list > .sc-scrollarea__view > .sc-row + .sc-row {
+    border-top: 1px solid var(--hairline);
+  }
+  .sc-admin .sc-row:hover {
+    background: var(--surface-2);
+  }
+  .sc-row__actions {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    opacity: 0.55;
+    transition: opacity 0.12s var(--ease);
+  }
+  .sc-row:hover .sc-row__actions {
+    opacity: 1;
+  }
+
+  .sc-admin .sc-kbd {
+    min-width: 0;
+    height: 18px;
+    padding: 0 5px;
+    border-radius: 4px;
+    background: transparent;
+    font-size: 10.5px;
+    font-weight: 400;
+    color: var(--text-3);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .sc-skeleton {
+    border-radius: 6px;
+    background: linear-gradient(90deg, rgba(255, 255, 255, 0.04) 25%, rgba(255, 255, 255, 0.08) 50%, rgba(255, 255, 255, 0.04) 75%);
+    background-size: 200% 100%;
+    animation: skeleton 1.4s linear infinite;
+  }
+
+  /* A picture of a post or cone, on a field so the transparent png sits on something. */
+  .sc-pic {
+    display: block;
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    border-radius: 5px;
+    background: radial-gradient(circle at 50% 38%, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0) 70%), var(--field);
+    object-fit: contain;
+    transition: filter 0.15s var(--ease);
+  }
+}
+
+/* ---- Our scrollbar (admin/ScrollArea.tsx) ----------------------------------------------------- */
+@property --sa-fade-top {
+  syntax: '<length>';
+  inherits: false;
+  initial-value: 0px;
+}
+@property --sa-fade-bottom {
+  syntax: '<length>';
+  inherits: false;
+  initial-value: 0px;
+}
+.sc-scrollarea {
+  --sa-gutter: 0px;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.sc-scrollarea[data-overflow='true'] {
+  --sa-gutter: 12px;
+}
+.sc-scrollarea__view {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 var(--sa-fade-top), #000 calc(100% - var(--sa-fade-bottom)), transparent 100%);
+  mask-image: linear-gradient(to bottom, transparent 0, #000 var(--sa-fade-top), #000 calc(100% - var(--sa-fade-bottom)), transparent 100%);
+  transition: --sa-fade-top 0.2s var(--ease), --sa-fade-bottom 0.2s var(--ease);
+}
+.sc-scrollarea__view::-webkit-scrollbar {
+  display: none;
+}
+.sc-scrollarea__track {
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  right: 1px;
+  width: 12px;
+  z-index: 2;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s var(--ease);
+}
+.sc-scrollarea__track[data-show='true'] {
+  pointer-events: auto;
+}
+.sc-scrollarea:hover > .sc-scrollarea__track[data-show='true'],
+.sc-scrollarea[data-scrolling='true'] > .sc-scrollarea__track[data-show='true'] {
+  opacity: 1;
+}
+.sc-scrollarea__thumb {
+  position: absolute;
+  top: 0;
+  right: 3px;
+  width: 4px;
+  border-radius: 99px;
+  background: rgba(255, 255, 255, 0.2);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.25);
+  cursor: grab;
+  transition: width 0.15s var(--ease), right 0.15s var(--ease), background 0.15s var(--ease);
+}
+.sc-scrollarea__track:hover .sc-scrollarea__thumb,
+.sc-scrollarea[data-dragging='true'] .sc-scrollarea__thumb {
+  width: 7px;
+  right: 2px;
+  background: rgba(255, 255, 255, 0.34);
+}
+.sc-scrollarea[data-dragging='true'] .sc-scrollarea__thumb {
+  cursor: grabbing;
+}
+
+/* ---- Motion: what comes in slides a few pixels and fades; what goes does the same, backwards, as
+   a copy of its last frame (admin/shared.tsx > useExitGhost). */
+@keyframes skeleton {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+@keyframes fadeOut {
+  to {
+    opacity: 0;
+  }
+}
+@keyframes panelOut {
+  to {
+    opacity: 0;
+    transform: translateY(6px) scale(0.99);
+  }
+}
+.animate-panelOut {
+  animation: fadeOut 0.16s var(--ease) forwards;
+}
+.animate-panelOut > div {
+  animation: panelOut 0.16s var(--ease) forwards;
+}
+@keyframes modalIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.975);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes modalOut {
+  to {
+    opacity: 0;
+    transform: translateY(6px) scale(0.975);
+  }
+}
+.animate-modalIn {
+  animation: modalIn 0.2s var(--ease);
+}
+.animate-modalOut {
+  animation: fadeOut 0.15s var(--ease) forwards;
+}
+.animate-modalOut > div {
+  animation: modalOut 0.15s var(--ease) forwards;
+}
+@keyframes toastIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.animate-toastIn {
+  animation: toastIn 0.16s var(--ease);
+}
+@keyframes toastOut {
+  to {
+    opacity: 0;
+    transform: translateY(6px) scale(0.97);
+  }
+}
+.animate-toastOut {
+  animation: toastOut 0.16s var(--ease) forwards;
+}
+@keyframes drawerOut {
+  to {
+    opacity: 0;
+    transform: translateX(14px);
+  }
+}
+.animate-drawerOut {
+  animation: drawerOut 0.16s var(--ease) forwards;
+}
+@keyframes tabFromRight {
+  from {
+    opacity: 0;
+    transform: translateX(14px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes tabFromLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-14px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.animate-tabFromRight {
+  animation: tabFromRight 0.22s var(--ease);
+}
+.animate-tabFromLeft {
+  animation: tabFromLeft 0.22s var(--ease);
+}
+/* List rows rise into place, a beat apart, when a list first shows. */
+@keyframes rowIn {
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.sc-admin .sc-list > .sc-row {
+  animation: rowIn 0.24s var(--ease) both;
+}
+.sc-admin .sc-list > .sc-row:nth-child(2) { animation-delay: 18ms; }
+.sc-admin .sc-list > .sc-row:nth-child(3) { animation-delay: 36ms; }
+.sc-admin .sc-list > .sc-row:nth-child(4) { animation-delay: 54ms; }
+.sc-admin .sc-list > .sc-row:nth-child(5) { animation-delay: 72ms; }
+.sc-admin .sc-list > .sc-row:nth-child(6) { animation-delay: 90ms; }
+.sc-admin .sc-list > .sc-row:nth-child(7) { animation-delay: 108ms; }
+.sc-admin .sc-list > .sc-row:nth-child(8) { animation-delay: 126ms; }
+.sc-admin .sc-list > .sc-row:nth-child(9) { animation-delay: 144ms; }
+.sc-admin .sc-list > .sc-row:nth-child(10) { animation-delay: 162ms; }
+.sc-admin .sc-list > .sc-row:nth-child(11) { animation-delay: 180ms; }
+.sc-admin .sc-list > .sc-row:nth-child(12) { animation-delay: 198ms; }
+.sc-admin .sc-list > .sc-row:nth-child(n + 13) { animation-delay: 216ms; }
+@media (prefers-reduced-motion: reduce) {
+  .sc-admin *,
+  .sc-admin *::before,
+  .sc-admin *::after {
+    animation-duration: 1ms !important;
+    animation-delay: 0ms !important;
+    transition-duration: 1ms !important;
+  }
+}
