@@ -1,0 +1,8 @@
+web/node_modules/
+
+# Written by the resource while it runs (tape on the server, Tape Studio styles): server data,
+# with player identifiers. The folder itself must exist (data/README.md keeps it).
+data/*.json
+
+# The full documentation, until it is published.
+README.draft.md

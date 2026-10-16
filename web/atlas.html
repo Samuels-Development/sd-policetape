@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>sd-policetape atlas</title>
+    <!--
+      Never seen by a person. A DUI loads this page and the game draws every tape in the world
+      from its one canvas (client/tape/atlas.lua). Transparent wherever nothing is painted.
+    -->
+    <style>
+      html, body { margin: 0; padding: 0; background: transparent; overflow: hidden; }
+      canvas { display: block; }
+    </style>
+  </head>
+  <body>
+    <canvas id="atlas"></canvas>
+    <script type="module" src="/src/atlas/main.ts"></script>
+  </body>
+</html>

@@ -1,0 +1,539 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+  The same visual language as the sd-bombs admin panel, so the two read as one family: near-black
+  neutral surfaces, hairline borders, Inter at small sizes, white primary buttons. The tokens and
+  the sc-* classes are named as they are there.
+
+  The only colour on screen is the tape itself.
+*/
+:root {
+  --sans: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+
+  --bg: #0c0d0f;
+  --surface: #121316;
+  --surface-2: #17181c;
+  --surface-3: #1d1f24;
+  --field: #0f1013;
+
+  --text-1: #ededef;
+  --text-2: #a0a0a8;
+  --text-3: #6e6e76;
+  --text-4: #4a4a52;
+
+  --hairline: rgba(255, 255, 255, 0.07);
+  --hairline-strong: rgba(255, 255, 255, 0.11);
+  --hairline-focus: rgba(255, 255, 255, 0.28);
+
+  --ok: #3ecf73;
+  --warn: #e5a33b;
+  --danger: #ef5b5b;
+  --danger-soft: rgba(239, 91, 91, 0.12);
+
+  --radius-sm: 6px;
+  --radius: 8px;
+  --radius-lg: 12px;
+  --ease: cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  height: 100%;
+  width: 100%;
+}
+
+body {
+  background: transparent;
+  font-family: var(--sans);
+  font-feature-settings: 'cv11', 'ss01';
+  -webkit-font-smoothing: antialiased;
+  color: var(--text-1);
+  overflow: hidden;
+  user-select: none;
+}
+
+button {
+  font-family: inherit;
+}
+button:not(:disabled) {
+  cursor: pointer;
+}
+button:focus,
+button:focus-visible {
+  outline: none;
+}
+input {
+  user-select: text;
+}
+
+.mono {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Components sit in Tailwind's components layer, so a utility on the same element (w-[88px],
+   border-hairline) wins over them. */
+@layer components {
+  /* Window ------------------------------------------------------------------------------------ */
+
+  .sc-window {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    border-radius: 14px;
+    background: var(--bg);
+    border: 1px solid var(--hairline-strong);
+    box-shadow: 0 30px 80px rgba(0, 0, 0, 0.55);
+  }
+  .sc-window__head {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    height: 56px;
+    padding: 0 12px 0 20px;
+    flex-shrink: 0;
+  }
+  .sc-title {
+    font-size: 14.5px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    color: var(--text-1);
+  }
+  .sc-subtitle {
+    font-size: 12.5px;
+    color: var(--text-3);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* Text -------------------------------------------------------------------------------------- */
+
+  .sc-label {
+    font-size: 11.5px;
+    font-weight: 500;
+    color: var(--text-3);
+  }
+  .sc-heading {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-1);
+  }
+  .sc-heading__count {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-3);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Buttons ----------------------------------------------------------------------------------- */
+
+  .sc-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    height: 30px;
+    padding: 0 11px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--hairline-strong);
+    background: transparent;
+    color: var(--text-1);
+    font-size: 12.5px;
+    font-weight: 500;
+    line-height: 1;
+    white-space: nowrap;
+    transition: background 0.15s var(--ease), border-color 0.15s var(--ease), color 0.15s var(--ease), opacity 0.15s var(--ease);
+  }
+  .sc-btn svg {
+    color: var(--text-2);
+    transition: color 0.15s var(--ease);
+  }
+  .sc-btn:hover:not(:disabled) {
+    background: var(--surface-3);
+    border-color: rgba(255, 255, 255, 0.16);
+  }
+  .sc-btn:hover:not(:disabled) svg {
+    color: var(--text-1);
+  }
+  .sc-btn:focus-visible {
+    border-color: var(--hairline-focus);
+  }
+  .sc-btn:disabled {
+    opacity: 0.4;
+  }
+  .sc-btn--primary {
+    background: var(--text-1);
+    border-color: var(--text-1);
+    color: #0c0d0f;
+  }
+  .sc-btn--primary svg,
+  .sc-btn--primary:hover:not(:disabled) svg {
+    color: #0c0d0f;
+  }
+  .sc-btn--primary:hover:not(:disabled) {
+    background: #ffffff;
+    border-color: #ffffff;
+  }
+  .sc-btn--danger:hover:not(:disabled) {
+    background: var(--danger-soft);
+    border-color: rgba(239, 91, 91, 0.35);
+    color: var(--danger);
+  }
+  .sc-btn--danger:hover:not(:disabled) svg {
+    color: var(--danger);
+  }
+  .sc-btn--danger-solid {
+    background: var(--danger);
+    border-color: var(--danger);
+    color: #fff;
+  }
+  .sc-btn--danger-solid svg {
+    color: #fff;
+  }
+  .sc-btn--danger-solid:hover:not(:disabled) {
+    background: #f26d6d;
+    border-color: #f26d6d;
+  }
+  .sc-btn--icon {
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border-color: transparent;
+  }
+  .sc-btn--icon:hover:not(:disabled) {
+    border-color: transparent;
+  }
+
+  /* Fields ------------------------------------------------------------------------------------ */
+
+  .sc-input {
+    width: 100%;
+    height: 32px;
+    padding: 0 10px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--hairline-strong);
+    background: var(--field);
+    color: var(--text-1);
+    font-size: 13px;
+    font-family: inherit;
+    outline: none;
+    transition: border-color 0.15s var(--ease), box-shadow 0.15s var(--ease);
+  }
+  .sc-input::placeholder {
+    color: var(--text-4);
+  }
+  .sc-input:focus {
+    border-color: var(--hairline-focus);
+    box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.05);
+  }
+  .sc-search {
+    position: relative;
+  }
+  .sc-search svg {
+    position: absolute;
+    left: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-3);
+    pointer-events: none;
+  }
+  .sc-search .sc-input {
+    padding-left: 32px;
+  }
+
+  .sc-segment {
+    display: inline-flex;
+    flex-wrap: wrap;
+    padding: 2px;
+    gap: 2px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--hairline);
+    background: var(--field);
+  }
+  .sc-segment > button {
+    height: 24px;
+    padding: 0 10px;
+    border-radius: 4px;
+    border: none;
+    background: transparent;
+    color: var(--text-3);
+    font-size: 12px;
+    font-weight: 500;
+    transition: background 0.15s var(--ease), color 0.15s var(--ease);
+  }
+  .sc-segment > button:hover {
+    color: var(--text-1);
+  }
+  .sc-segment > button[data-on='true'] {
+    background: var(--surface-3);
+    color: var(--text-1);
+  }
+
+  input[type='range'].sc-range {
+    -webkit-appearance: none;
+    appearance: none;
+    height: 18px;
+    background: transparent;
+  }
+  input[type='range'].sc-range::-webkit-slider-runnable-track {
+    height: 3px;
+    border-radius: 2px;
+    background: var(--surface-3);
+  }
+  input[type='range'].sc-range::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 13px;
+    height: 13px;
+    margin-top: -5px;
+    border-radius: 50%;
+    background: var(--text-1);
+    border: none;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+  }
+
+  .sc-swatch {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    padding: 0;
+    transition: transform 0.12s var(--ease), box-shadow 0.12s var(--ease);
+  }
+  .sc-swatch:hover {
+    transform: scale(1.1);
+  }
+  .sc-swatch[data-on='true'] {
+    box-shadow: 0 0 0 2px var(--bg), 0 0 0 3.5px var(--text-1);
+  }
+
+  /* Tabs -------------------------------------------------------------------------------------- */
+
+  .sc-tabs {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    padding: 0 10px;
+    border-bottom: 1px solid var(--hairline);
+  }
+  .sc-tab {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    height: 38px;
+    padding: 0 9px;
+    border: none;
+    background: none;
+    font-size: 12.5px;
+    font-weight: 500;
+    color: var(--text-3);
+    transition: color 0.15s var(--ease);
+  }
+  .sc-tab:hover {
+    color: var(--text-2);
+  }
+  .sc-tab[data-on='true'] {
+    color: var(--text-1);
+  }
+  .sc-tab[data-on='true']::after {
+    content: '';
+    position: absolute;
+    left: 9px;
+    right: 9px;
+    bottom: -1px;
+    height: 1.5px;
+    border-radius: 1px;
+    background: var(--text-1);
+  }
+  .sc-tab__count {
+    font-size: 11.5px;
+    color: var(--text-4);
+    font-variant-numeric: tabular-nums;
+  }
+  .sc-tab[data-on='true'] .sc-tab__count {
+    color: var(--text-3);
+  }
+
+  /* Filter chips: like tabs, for when there are too many for one line. */
+  .sc-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .sc-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 26px;
+    padding: 0 9px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--hairline);
+    background: transparent;
+    color: var(--text-3);
+    font-size: 12px;
+    font-weight: 500;
+    transition: background 0.15s var(--ease), color 0.15s var(--ease), border-color 0.15s var(--ease);
+  }
+  .sc-chip:hover {
+    color: var(--text-1);
+    border-color: var(--hairline-strong);
+  }
+  .sc-chip[data-on='true'] {
+    background: var(--surface-3);
+    border-color: rgba(255, 255, 255, 0.16);
+    color: var(--text-1);
+  }
+  .sc-chip__count {
+    font-size: 11px;
+    color: var(--text-4);
+    font-variant-numeric: tabular-nums;
+  }
+  .sc-chip[data-on='true'] .sc-chip__count {
+    color: var(--text-3);
+  }
+
+  /* Lists and cards --------------------------------------------------------------------------- */
+
+  .sc-list {
+    border: 1px solid var(--hairline);
+    border-radius: var(--radius);
+    background: var(--surface);
+    overflow: hidden;
+  }
+  .sc-row {
+    display: block;
+    width: 100%;
+    padding: 10px 14px 11px;
+    border: none;
+    background: transparent;
+    color: inherit;
+    text-align: left;
+    transition: background 0.12s var(--ease);
+  }
+  .sc-list .sc-row + .sc-row {
+    border-top: 1px solid var(--hairline);
+  }
+  .sc-row:hover,
+  .sc-row[data-active='true'] {
+    background: var(--surface-2);
+  }
+  .sc-row[data-on='true'] {
+    background: var(--surface-3);
+  }
+
+  .sc-card {
+    border: 1px solid var(--hairline);
+    border-radius: var(--radius);
+    background: var(--surface);
+  }
+
+  .sc-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11.5px;
+    font-weight: 500;
+    color: var(--text-2);
+    white-space: nowrap;
+  }
+  .sc-status::before {
+    content: '';
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--text-4);
+  }
+  .sc-status--ok::before {
+    background: var(--ok);
+  }
+  .sc-status--warn::before {
+    background: var(--warn);
+  }
+  .sc-status--danger::before {
+    background: var(--danger);
+  }
+
+  .sc-kbd {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 22px;
+    height: 20px;
+    padding: 0 6px;
+    border-radius: 5px;
+    border: 1px solid var(--hairline-strong);
+    background: var(--surface-2);
+    color: var(--text-1);
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 1;
+  }
+
+  /* Tape strips sit in a field, with a hairline round them. */
+  .sc-strip {
+    border-radius: 4px;
+    overflow: hidden;
+    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.06);
+  }
+
+}
+
+/* Scrolling */
+.scroll::-webkit-scrollbar {
+  width: 8px;
+}
+.scroll::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+.scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* Motion: only what answers something the player did. */
+@keyframes panelIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+@keyframes drawerIn {
+  from {
+    opacity: 0;
+    transform: translateX(16px);
+  }
+}
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+}
+.animate-panelIn {
+  animation: panelIn 0.18s var(--ease);
+}
+.animate-drawerIn {
+  animation: drawerIn 0.2s var(--ease);
+}
+.animate-fadeIn {
+  animation: fadeIn 0.18s var(--ease);
+}
+@media (prefers-reduced-motion: reduce) {
+  .animate-panelIn,
+  .animate-drawerIn,
+  .animate-fadeIn {
+    animation: none;
+  }
+}

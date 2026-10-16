@@ -1,0 +1,38 @@
+{
+  "name": "sd-policetape-ui",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@fontsource-variable/oswald": "^5.2.5",
+    "@fontsource-variable/roboto-condensed": "^5.2.5",
+    "@fontsource-variable/teko": "^5.2.5",
+    "@fontsource/anton": "^5.2.5",
+    "@fontsource/archivo-black": "^5.2.5",
+    "@fontsource/barlow": "^5.3.0",
+    "@fontsource/barlow-condensed": "^5.2.5",
+    "@fontsource/bebas-neue": "^5.2.5",
+    "@fontsource/black-ops-one": "^5.2.5",
+    "@fontsource/inter": "^5.3.0",
+    "@fontsource/russo-one": "^5.2.5",
+    "@fontsource/saira-stencil-one": "^5.2.5",
+    "@fontsource/staatliches": "^5.2.5",
+    "lucide-react": "^0.468.0",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.1.0",
+    "@types/react-dom": "^19.1.0",
+    "@vitejs/plugin-react": "^4.3.4",
+    "postcss": "^8.5.29",
+    "tailwindcss": "^3.4.19",
+    "typescript": "^5.7.2",
+    "vite": "^6.0.7"
+  }
+}
