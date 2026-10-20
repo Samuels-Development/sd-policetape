@@ -4,7 +4,7 @@ lua54 'yes'
 
 name 'sd-policetape'
 author 'Samuel#0008'
-version '1.0.0'
+version '1.0.1'
 description 'Police tape that sags, sways in the wind and gives way to people and vehicles: 100 styles and an in-game studio for more'
 
 shared_scripts {

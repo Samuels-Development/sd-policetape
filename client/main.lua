@@ -152,8 +152,8 @@ RegisterCommand('sdtape_dbg', function(_, args)
         render.winding = args[2]
     end
     local s = world.stats()
-    print(('[sd-policetape] tapes %d, built %d, awake chains %d, push %.2f m, strain %.3f, resist %.2f, posts %d, colliders %d, preview %s | atlas %s ready %s | winding %s | styles %d | perms use=%s studio=%s admin=%s'):format(
-        s.total, s.built, s.awakeChains, s.push, s.strain, s.resist, s.posts, s.colliders, tostring(s.preview), atlas.TXD, tostring(atlas.isReady()),
+    print(('[sd-policetape] tapes %d, built %d, in sight %d, triangles %d, awake chains %d, push %.2f m, strain %.3f, resist %.2f, posts %d, colliders %d, preview %s | atlas %s ready %s | winding %s | styles %d | perms use=%s studio=%s admin=%s'):format(
+        s.total, s.built, s.seen, s.drawn, s.awakeChains, s.push, s.strain, s.resist, s.posts, s.colliders, tostring(s.preview), atlas.TXD, tostring(atlas.isReady()),
         render.winding, #state.styles,
         tostring(state.perms.use), tostring(state.perms.studio), tostring(state.perms.admin)))
 end, false)

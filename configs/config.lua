@@ -110,6 +110,11 @@ return {
 
     Render = {
         DrawDistance = 90.0, -- tape is drawn this far away
+        -- The most triangles all tape together draws in one frame. GTA crashes the game once
+        -- somewhere between 1000 and 1500 script-drawn triangles are drawn in a frame, so keep
+        -- this well under 1000. A close tape costs about 100, a distant one about 15; with more
+        -- in sight, distant ones are drawn coarser and the furthest are left out.
+        MaxTriangles = 600,
         StreamDistance = 130.0, -- tape is built (and posts spawned) this far away
         NightBrightness = 0.42, -- tape is drawn by the script, so it is dimmed at night by hand
         InteriorBrightness = 0.8,

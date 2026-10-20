@@ -16,6 +16,10 @@
 ---Drawn with DRAW_TEXTURED_POLY (DrawSpritePoly). Its three-colour sibling would shade per vertex,
 ---but on build 3258 it draws a runtime (DUI) texture as solid black whatever the colours, so the
 ---shading here is one colour per triangle: with 25 cm segments nobody can tell.
+---
+---Every triangle is one call, and the game crashes outright once somewhere between 1000 and 1500
+---of them are drawn in one frame (measured on build 3258: 1000 a frame ran, 1500 crashed). So
+---nothing here draws past `frame.left`, the calls world.lua leaves for this frame.
 local render = {}
 
 local sqrt, sin, cos, floor, abs, min, max, log = math.sqrt, math.sin, math.cos, math.floor, math.abs, math.min, math.max, math.log
@@ -36,6 +40,11 @@ local idx = {}                     -- the nodes drawn this time
 ---vanishes. 'both' doubles the draw calls and is only for checking a new game build
 ---(the command `sdtape_dbg winding both`).
 render.winding = 'ccw'
+
+---The coarsest detail a chain is drawn at: one quad per repeat of the print, its corners where the
+---repeats meet, so a tape costs two triangles per Config.Tape.Repeat metres. Any other detail is
+---a stride: every node (1), every other one (2)...
+render.TILE = 0
 
 ---Per-frame constants, filled by world.lua once a frame.
 ---@class TapeFrame
@@ -58,7 +67,8 @@ render.winding = 'ccw'
 ---@field repeatLen number
 ---@field txd string
 ---@field txn string
-local frame = {}
+---@field left number draw calls still allowed this frame
+local frame = { left = math.huge }
 render.frame = frame
 
 ---Wind displacement for one node. `e` is 0 where the tape is held and 1 where it is free.
@@ -105,12 +115,23 @@ local function tri(x1, y1, z1, x2, y2, z2, x3, y3, z3, c1, c2, c3, a, u1, v1, u2
         x2, y2, z2, x3, y3, z3 = x3, y3, z3, x2, y2, z2
         u2, v2, u3, v3 = u3, v3, u2, v2
     end
-    if w ~= 'cw' then
+    if w ~= 'cw' and f.left > 0 then
         DrawSpritePoly(x1, y1, z1, x2, y2, z2, x3, y3, z3, c, c, c, a, f.txd, f.txn, u1, v1, 1.0, u2, v2, 1.0, u3, v3, 1.0)
+        f.left = f.left - 1
     end
-    if w ~= 'ccw' then
+    if w ~= 'ccw' and f.left > 0 then
         DrawSpritePoly(x1, y1, z1, x3, y3, z3, x2, y2, z2, c, c, c, a, f.txd, f.txn, u1, v1, 1.0, u3, v3, 1.0, u2, v2, 1.0)
+        f.left = f.left - 1
     end
+end
+
+---The atlas rectangle (mip level) for a segment `d` metres from the camera: how many atlas texels
+---land on one screen pixel there.
+local function mip(uv, d)
+    local ratio = frame.lodK * d
+    local level = 1
+    if ratio > 1.5 then level = min(4, 1 + floor(log(ratio / 1.5) / LN2 + 1.0)) end
+    return uv[level]
 end
 
 ---Draws one quad of ribbon between material coordinates sa and sb, which lie inside one repeat
@@ -161,19 +182,100 @@ local function freedom(c, i)
     return e
 end
 
+---Pass 3 at render.TILE: one quad per repeat of the print, seam to seam, with its corners on the
+---tape between the nodes they fall between.
+local function tileQuads(c, uv, alpha)
+    local f = frame
+    local s, n = c.s, c.n
+    local R = f.repeatLen
+    local ax, ay, az, awx, awy, awz, ca = qx[1], qy[1], qz[1], wx[1], wy[1], wz[1], lit[1]
+    local nax, nay, naz = nx[1], ny[1], nz[1]
+    local from = s[1]
+    local tile = floor(s[1] / R)
+    local j = 1
+    while true do
+        local sm = (tile + 1) * R
+        local last = sm > s[n] - 1e-7 * R
+        local bx, by, bz, bwx, bwy, bwz, cb, nbx, nby, nbz
+        if last then
+            sm = s[n]
+            bx, by, bz, bwx, bwy, bwz, cb = qx[n], qy[n], qz[n], wx[n], wy[n], wz[n], lit[n]
+            nbx, nby, nbz = nx[n], ny[n], nz[n]
+        else
+            while j < n - 1 and s[j + 1] < sm do j = j + 1 end
+            local k = j + 1
+            local t = (sm - s[j]) / max(1e-9, s[k] - s[j])
+            bx, by, bz = qx[j] + (qx[k] - qx[j]) * t, qy[j] + (qy[k] - qy[j]) * t, qz[j] + (qz[k] - qz[j]) * t
+            bwx, bwy, bwz = wx[j] + (wx[k] - wx[j]) * t, wy[j] + (wy[k] - wy[j]) * t, wz[j] + (wz[k] - wz[j]) * t
+            local l = sqrt(bwx * bwx + bwy * bwy + bwz * bwz)
+            if l > 1e-6 then bwx, bwy, bwz = bwx / l, bwy / l, bwz / l end
+            nbx, nby, nbz = nx[j] + (nx[k] - nx[j]) * t, ny[j] + (ny[k] - ny[j]) * t, nz[j] + (nz[k] - nz[j]) * t
+            cb = floor(lit[j] + (lit[k] - lit[j]) * t)
+        end
+
+        local vx, vy, vz = f.cx - (ax + bx) * 0.5, f.cy - (ay + by) * 0.5, f.cz - (az + bz) * 0.5
+        local rect = mip(uv, sqrt(vx * vx + vy * vy + vz * vz))
+        local front = (nax + nbx) * vx + (nay + nby) * vy + (naz + nbz) * vz >= 0.0
+        quad(ax, ay, az, awx, awy, awz, bx, by, bz, bwx, bwy, bwz, ca, cb, from, sm, tile, rect, front, alpha)
+        if last then return end
+
+        ax, ay, az, awx, awy, awz, ca = bx, by, bz, bwx, bwy, bwz, cb
+        nax, nay, naz = nbx, nby, nbz
+        from, tile = sm, tile + 1
+    end
+end
+
+---How many draw calls render.chain makes for `c` at `stride` (render.TILE included), counted
+---the way it draws them, so world.lua can plan a frame before drawing it.
+---@param c table
+---@param stride integer
+---@return integer
+function render.cost(c, stride)
+    local R = frame.repeatLen
+    local s, n = c.s, c.n
+    local quads = 0
+    if stride == render.TILE then
+        local tile = floor(s[1] / R)
+        repeat
+            quads = quads + 1
+            tile = tile + 1
+        until tile * R > s[n] - 1e-7 * R
+    else
+        local i = 1
+        while i < n do
+            local j = min(i + stride, n)
+            quads = quads + 1 + max(0, floor(s[j] / R - 1e-7) - floor(s[i] / R))
+            i = j
+        end
+    end
+    return quads * (render.winding == 'both' and 4 or 2)
+end
+
+---Draw calls one render.wrap makes at most `d` metres away (seen from anywhere but straight along
+---the post): just over half its sides face the camera.
+---@param d number
+---@return integer
+function render.wrapCost(d)
+    local quads = d < 12.0 and 6 or 4
+    return quads * (render.winding == 'both' and 4 or 2)
+end
+
 ---Draws a chain. `uv` is the atlas rectangles of its style (atlas.acquire).
 ---@param c table
 ---@param uv table<integer, number[]>
 ---@param phase number per-tape random phase, so neighbouring tapes do not sway in step
 ---@param alpha integer 0..255
----@param stride? integer draw every stride-th node (far away, the shape needs fewer)
+---@param stride? integer draw every stride-th node (far away, the shape needs fewer), or render.TILE
 function render.chain(c, uv, phase, alpha, stride)
     local f = frame
     local n = c.n
     local x, y, z, s = c.x, c.y, c.z, c.s
 
-    -- The nodes drawn: all of them close up, fewer further away, the last one always.
+    -- The nodes drawn: all of them close up, fewer further away, the last one always. At
+    -- render.TILE every node is worked out and the quads run between the print's seams instead.
     stride = stride or 1
+    local tiles = stride == render.TILE
+    if tiles then stride = 1 end
     local m = 0
     for i = 1, n, stride do
         m = m + 1
@@ -268,21 +370,19 @@ function render.chain(c, uv, phase, alpha, stride)
         lit[i] = floor(min(255.0, bright * 255.0))
     end
 
+    if tiles then
+        tileQuads(c, uv, alpha)
+        return
+    end
+
     -- 3. Quads, segment by segment.
     local R = f.repeatLen
     local cxp, cyp, czp = f.cx, f.cy, f.cz
-    local lodK = f.lodK
     for k = 1, m - 1 do
         local i, j = idx[k], idx[k + 1]
         local mx, my, mz = (qx[i] + qx[j]) * 0.5, (qy[i] + qy[j]) * 0.5, (qz[i] + qz[j]) * 0.5
         local vx, vy, vz = cxp - mx, cyp - my, czp - mz
-        local d = sqrt(vx * vx + vy * vy + vz * vz)
-
-        -- Mip level: how many atlas texels land on one screen pixel at this distance.
-        local ratio = lodK * d
-        local level = 1
-        if ratio > 1.5 then level = min(4, 1 + floor(log(ratio / 1.5) / LN2 + 1.0)) end
-        local rect = uv[level]
+        local rect = mip(uv, sqrt(vx * vx + vy * vy + vz * vz))
 
         local front = (nx[i] + nx[j]) * vx + (ny[i] + ny[j]) * vy + (nz[i] + nz[j]) * vz >= 0.0
 
@@ -320,13 +420,11 @@ end
 ---@param uz? number
 function render.wrap(px, py, pz, radius, heading, uv, alpha, ux, uy, uz)
     local f = frame
-    local steps = 10
     local vx, vy, vz = f.cx - px, f.cy - py, f.cz - pz
     local d = sqrt(vx * vx + vy * vy + vz * vz)
-    local ratio = f.lodK * d
-    local level = 1
-    if ratio > 1.5 then level = min(4, 1 + floor(log(ratio / 1.5) / LN2 + 1.0)) end
-    local rect = uv[level]
+    -- (round a 3 cm post, six sides look round from a dozen metres)
+    local steps = d < 12.0 and 10 or 6
+    local rect = mip(uv, d)
     local c = floor(min(255.0, f.light * 0.92 * 255.0))
     local circumference = 2 * PI * radius
     local R = f.repeatLen

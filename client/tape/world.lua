@@ -58,11 +58,18 @@ world.params = P
 ---@field cz number
 ---@field radius number
 ---@field posts table|nil what its torn halves hang from (postsOf)
+---@field seenD number this frame: how far in front of the camera, when in sight
+---@field uv table|nil this frame: its style's atlas rectangles
+---@field detail integer|nil this frame: the detail it is drawn at (nil: not drawn)
+---@field cost integer this frame: draw calls at that detail
+---@field wraps boolean this frame: whether the turns round its posts are drawn
 
 ---@type table<integer, Tape>
 local tapes = {}
 ---@type Tape[] built tapes
 local live = {}
+---@type Tape[] the built tapes in sight this frame
+local seen = {}
 
 ---@type table|nil the tape being aimed while placing
 local preview = nil
@@ -461,7 +468,10 @@ function world.stats()
     end
     local rs = world.resist
     local resisting = rs and GetGameTimer() < rs.untilT and rs.r or 0.0
-    return { total = total, built = #live, awakeChains = awake, posts = postCount, colliders = colliders.count, preview = preview ~= nil, push = push, strain = strain, resist = resisting }
+    return {
+        total = total, built = #live, awakeChains = awake, posts = postCount, colliders = colliders.count, preview = preview ~= nil,
+        push = push, strain = strain, resist = resisting, seen = #seen, drawn = world.drawn or 0,
+    }
 end
 
 function world.all()
@@ -771,6 +781,93 @@ local function drawPosts(t, uv)
     end
 end
 
+local function nearer(a, b) return a.seenD < b.seenD end
+
+---The detail a tape is drawn at this far away, room allowing: every node close up, every other
+---one further out, seam to seam (render.TILE) far away.
+local function detailFor(d)
+    if d < 20.0 then return 1 end
+    if d < 45.0 then return 2 end
+    return render.TILE
+end
+
+local function costOf(t, detail)
+    local n = 0
+    for _, c in ipairs(t.chains) do n = n + render.cost(c, detail) end
+    return n
+end
+
+local function holderCount(t)
+    return (holderOf(t, 'a') and 1 or 0) + (holderOf(t, 'b') and 1 or 0)
+end
+
+---Draws the tape being placed and every tape in sight in at most Render.MaxTriangles draw calls
+---between them (render.lua says why there must be a limit). The tape being placed comes first.
+---Then every tape in sight at its cheapest, nearest first, so a crowded scene loses its furthest
+---tapes instead of crashing the game. Whatever room is left goes to the nearest tapes, each in
+---turn drawn finer and then given the turns round its posts.
+local function draw()
+    local budget = RENDER.MaxTriangles or 600
+    frame.left = budget
+
+    local p = preview
+    if p and p.chain then
+        local _, uv = atlas.acquire(p.style)
+        if uv then
+            local detail = render.cost(p.chain, 1) <= frame.left and 1 or render.TILE
+            render.chain(p.chain, uv, p.phase, p.ok and 215 or 120, detail)
+        end
+    end
+
+    table.sort(seen, nearer)
+    local room = frame.left
+    for k = 1, #seen do
+        local t = seen[k]
+        t.detail, t.wraps = nil, false
+        local _, uv = atlas.acquire(t.style)
+        if uv then
+            local cost = costOf(t, render.TILE)
+            if cost <= room then
+                room = room - cost
+                t.uv, t.detail, t.cost = uv, render.TILE, cost
+            end
+        end
+    end
+    for k = 1, #seen do
+        local t = seen[k]
+        local want = detailFor(t.seenD)
+        if t.detail and want ~= render.TILE then
+            for detail = want, 2 do
+                local cost = costOf(t, detail)
+                if cost - t.cost <= room then
+                    room = room - (cost - t.cost)
+                    t.detail, t.cost = detail, cost
+                    break
+                end
+            end
+        end
+        if t.detail and t.seenD < 40.0 then
+            local cost = render.wrapCost(t.seenD) * holderCount(t)
+            if cost <= room then
+                room = room - cost
+                t.wraps = true
+            end
+        end
+    end
+
+    for k = 1, #seen do
+        local t = seen[k]
+        if t.detail then
+            for _, c in ipairs(t.chains) do render.chain(c, t.uv, t.phase, 255, t.detail) end
+        end
+    end
+    for k = 1, #seen do
+        local t = seen[k]
+        if t.wraps then drawPosts(t, t.uv) end
+    end
+    world.drawn = budget - frame.left
+end
+
 ---Knocks over what this client's ped or vehicles ran into: at once here, and tells the server,
 ---which checks it and has everyone else's go down the same way.
 local function knockOver(ped, now)
@@ -850,6 +947,7 @@ CreateThread(function()
             if PHYS.Enabled then holders.passVehicles(me.x, me.y) end
 
             local drawSq = RENDER.DrawDistance
+            local nseen = 0
             for i = #live, 1, -1 do
                 local t = live[i]
                 if t and t.chains then
@@ -865,16 +963,13 @@ CreateThread(function()
                     local vx, vy, vz = frame.cx - t.cx, frame.cy - t.cy, frame.cz - t.cz
                     local d = sqrt(vx * vx + vy * vy + vz * vz) - t.radius
                     if d < drawSq and IsSphereVisible(t.cx, t.cy, t.cz, t.radius) then
-                        local _, uv = atlas.acquire(t.style)
-                        if uv and t.chains then
-                            -- Fewer nodes drawn the further away it is (the shape reads the same).
-                            local stride = d < 20.0 and 1 or (d < 45.0 and 2 or 4)
-                            for _, c in ipairs(t.chains) do render.chain(c, uv, t.phase, 255, stride) end
-                            if d < 40.0 then drawPosts(t, uv) end
-                        end
+                        nseen = nseen + 1
+                        seen[nseen] = t
+                        t.seenD = d
                     end
                 end
             end
+            for i = nseen + 1, #seen do seen[i] = nil end
 
             if PHYS.Enabled then applyResistance() end
 
@@ -892,10 +987,9 @@ CreateThread(function()
                     fake.chains = { c }
                     simulate(fake, dt, ncols, cols)
                 end
-                local _, uv = atlas.acquire(p.style)
-                if uv then render.chain(c, uv, p.phase, p.ok and 215 or 120) end
             end
 
+            draw()
             Wait(0)
         end
     end

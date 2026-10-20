@@ -92,6 +92,11 @@ local long = sim.newSpan(0, 0, 1, 15, 3, 1.4, 0.25, 0.3)
 run('15 m span', long)
 run('15 m span, stride 2 (20-45 m away)', long, nil, 2)
 run('15 m span, stride 4 (45 m+ away)', long, nil, 4)
+run('15 m span, seam to seam (TILE)', long, nil, render.TILE)
+run('8 m span, seam to seam (TILE)', span, nil, render.TILE)
+f.cy = 5.0
+run('8 m span from behind, TILE', span, nil, render.TILE)
+f.cy = -5.0
 
 -- A tape hanging straight down (torn half) exercises the parallel-transport fallback.
 local P = {}
@@ -99,6 +104,7 @@ for k, v in pairs(sim.defaults) do P[k] = v end
 local a, b = sim.newTorn(0, 0, 1, 8, 0, 1, 0.25, 0.16, 0.5, function() return 0.0 end, P)
 run('torn half A', a)
 run('torn half B', b)
+run('torn half B, TILE', b, nil, render.TILE)
 
 -- Pressed against a car bonnet: contact normals up.
 local pressed = sim.newSpan(0, 0, 1, 8, 0, 1, 0.25, 0.16)
@@ -204,4 +210,56 @@ do
     print(('%-34s %5d triangles, %d inside the post or its base  %s'):format('torn at a post (6 ways, 4 places)',
         facing.total, facing.inPost, facing.inPost == 0 and 'ok' or 'WRONG'))
     facing = nil
+end
+
+-- The frame's budget (world.lua). render.cost has to count exactly what render.chain draws, at
+-- every detail and from wherever a chain's print starts (a torn half starts mid-print), or a
+-- frame is planned wrong; a wrap may never cost more than render.wrapCost says; and nothing is
+-- drawn once frame.left is spent, whatever was planned.
+do
+    local wrong, checked = {}, 0
+    local chains = { { '8 m span', span }, { '15 m span', long }, { 'torn half A', a }, { 'torn half B', b }, { 'pressed', pressed } }
+    for _, len in ipairs({ 0.6, 1.19, 1.2, 1.21, 2.4, 3.7, 6.0, 9.9, 12.0, 14.95 }) do
+        chains[#chains + 1] = { ('%.2f m span'):format(len), sim.newSpan(0, 0, 1, len, 0.3, 1.1, 0.25, 0.05 + 0.01 * len) }
+    end
+    for _, winding in ipairs({ 'ccw', 'both' }) do
+        render.winding = winding
+        for _, entry in ipairs(chains) do
+            for _, detail in ipairs({ 1, 2, 4, render.TILE }) do
+                calls, bad = 0, {}
+                render.chain(entry[2], uvRects, 0.7, 255, detail)
+                local said = render.cost(entry[2], detail)
+                checked = checked + 1
+                if calls ~= said then
+                    wrong[#wrong + 1] = ('%s, %s, detail %d: drew %d, cost said %d'):format(entry[1], winding, detail, calls, said)
+                end
+                if #bad > 0 then wrong[#wrong + 1] = ('%s, %s, detail %d: %s'):format(entry[1], winding, detail, bad[1]) end
+            end
+        end
+    end
+    render.winding = 'ccw'
+    print(('%-34s %4d chains x details x windings, %s'):format('render.cost = what is drawn', checked,
+        #wrong == 0 and 'ok' or ('WRONG: ' .. wrong[1] .. (' (+%d more)'):format(#wrong - 1))))
+
+    for _, dist in ipairs({ 3.0, 11.9, 12.1, 20.0, 39.0 }) do
+        local most = 0
+        for k = 0, 199 do
+            local r, el = k * 0.37, -1.2 + (k % 23) * 0.1
+            f.cx, f.cy, f.cz = dist * math.cos(r) * math.cos(el), dist * math.sin(r) * math.cos(el), 1 + dist * math.sin(el)
+            calls = 0
+            render.wrap(0, 0, 1, 0.029, r * 1.7, uvRects, 255)
+            if calls > most then most = calls end
+        end
+        print(('%-34s %4d draw calls at most, wrapCost %d  %s'):format(('wrap from 200 places %.1f m away'):format(dist), most,
+            render.wrapCost(dist), most <= render.wrapCost(dist) and 'ok' or 'WRONG'))
+    end
+    f.cx, f.cy, f.cz = 4.0, -5.0, 1.7
+
+    f.left = 50
+    calls = 0
+    render.chain(long, uvRects, 0.7, 255, 1)
+    render.wrap(0, 0, 1, 0.029, 0.5, uvRects, 255)
+    local stopped = calls == 50 and f.left == 0
+    f.left = math.huge
+    print(('%-34s %4d draw calls with 50 left             %s'):format('budget spent mid-tape', calls, stopped and 'ok' or 'WRONG'))
 end
