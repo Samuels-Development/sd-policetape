@@ -275,6 +275,7 @@ end
 
 RegisterNetEvent('sd-policetape:server:remove', function(id)
     local src = source
+    if type(id) ~= 'number' then return end
     local tape = store.get(id)
     if not tape then return tell(src, 'notify.not_found') end
     if not mayTouch(src, tape) then return tell(src, 'notify.no_permission') end
@@ -291,6 +292,7 @@ end)
 
 RegisterNetEvent('sd-policetape:server:restyle', function(id, style)
     local src = source
+    if type(id) ~= 'number' then return end
     local tape = store.get(id)
     if not tape then return tell(src, 'notify.not_found') end
     if type(style) ~= 'string' or not styles.get(style) then return tell(src, 'notify.unknown_style') end
@@ -313,6 +315,7 @@ end
 
 RegisterNetEvent('sd-policetape:server:persist', function(id, on)
     local src = source
+    if type(id) ~= 'number' or type(on) ~= 'boolean' then return end
     local tape = store.get(id)
     if not tape then return tell(src, 'notify.not_found') end
     if not config.Persist or config.PersistChoice == false then return tell(src, 'notify.persist_off') end
@@ -330,6 +333,7 @@ end)
 ---only if people may, and their ped is on foot right at the tape).
 RegisterNetEvent('sd-policetape:server:tear', function(id, frac, net, byPed)
     local src = source
+    if type(id) ~= 'number' then return end
     local tape = store.get(id)
     if not TEAR.Enabled or not tape then return end
     if tape.torn then return end
@@ -388,6 +392,7 @@ end)
 ---Every tape tied to that holder goes down with it.
 RegisterNetEvent('sd-policetape:server:knock', function(id, which, dx, dy, slide, net, byPed)
     local src = source
+    if type(id) ~= 'number' then return end
     if HOLD.Knock == false then return end
     local tape = store.get(id)
     if not tape or (which ~= 'a' and which ~= 'b') or not tape[which .. 'p'] then return end
@@ -442,6 +447,7 @@ end)
 ---A player stands a knocked-over holder back up. Anyone allowed to use tape may.
 RegisterNetEvent('sd-policetape:server:standup', function(id, which)
     local src = source
+    if type(id) ~= 'number' then return end
     if HOLD.StandUp == false then return end
     local tape = store.get(id)
     if not tape or (which ~= 'a' and which ~= 'b') or not tape[which .. 'p'] then return end
@@ -489,6 +495,16 @@ end)
 lib.callback.register('sd-policetape:server:deleteStyle', function(src, id)
     if not access.canStudio(src) then return { ok = false, error = t('notify.no_permission') } end
     if type(id) ~= 'string' then return { ok = false, error = t('notify.unknown_style') } end
+    if not allow(src, 'studio', 20, 60) then return { ok = false, error = t('notify.rate_limited') } end
+    local existing = styles.get(id)
+    if not existing or not existing.custom then return { ok = false, error = t('notify.unknown_style') } end
+    -- Only the maker or an admin may delete it; old styles have no key, so go by name.
+    if not access.isAdmin(src) then
+        local key = styles.authorKey(player.getIdentifier(src))
+        local mine = existing.authorKey and existing.authorKey == key
+            or (not existing.authorKey and existing.author ~= nil and existing.author == player.getName(src))
+        if not mine then return { ok = false, error = t('notify.no_permission') } end
+    end
     local s = styles.delete(id)
     if not s then return { ok = false, error = t('notify.unknown_style') } end
 
@@ -529,12 +545,18 @@ lib.addCommand(config.Commands.Clear, {
 }, function(src, args)
     if src > 0 and not access.isAdmin(src) then return tell(src, 'notify.no_permission') end
     local arg = args.radius and tostring(args.radius):lower() or nil
+    local radius = tonumber(arg) or 25.0
     local count
-    if arg == 'all' or src == 0 then
+    if arg == 'all' then
         count = clearNear(nil)
+    elseif src == 0 then
+        return log.warn('the console has no position, use "%s all"', config.Commands.Clear)
+    elseif arg and not tonumber(arg) or radius <= 0 then
+        return tell(src, 'notify.admin_invalid')
     else
         local me = pedPos(src)
-        count = clearNear(me, tonumber(arg) or 25.0)
+        if not me then return tell(src, 'notify.too_far') end
+        count = clearNear(me, radius)
     end
     if src == 0 then
         log.info('took down %d tapes', count)
