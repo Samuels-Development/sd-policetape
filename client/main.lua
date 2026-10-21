@@ -97,7 +97,7 @@ for _, ev in ipairs({ 'QBCore:Client:OnJobUpdate', 'QBCore:Client:OnPlayerLoaded
 end
 CreateThread(function()
     while true do
-        Wait(60000)
+        Wait(300000)
         setPerms(lib.callback.await('sd-policetape:server:perms', false))
     end
 end)
@@ -139,10 +139,24 @@ end
 RegisterCommand(config.Commands.Studio, function() openStudio() end, false)
 AddEventHandler('sd-policetape:client:openStudio', openStudio)
 
-TriggerEvent('chat:addSuggestion', '/' .. config.Commands.Place, 'Place police tape')
-TriggerEvent('chat:addSuggestion', '/' .. config.Commands.Styles, 'Choose the police tape style you place with')
-TriggerEvent('chat:addSuggestion', '/' .. config.Commands.Studio, 'Make new police tape styles')
-TriggerEvent('chat:addSuggestion', '/' .. config.Commands.Admin, 'Police tape admin menu')
+local function addSuggestions()
+    for cmd, key in pairs({
+        [config.Commands.Place] = 'suggest.place',
+        [config.Commands.Styles] = 'suggest.styles',
+        [config.Commands.Studio] = 'suggest.studio',
+        [config.Commands.Admin] = 'suggest.admin',
+    }) do
+        TriggerEvent('chat:addSuggestion', '/' .. cmd, t(key))
+    end
+end
+-- The locale loads a moment after start and the chat may start after us, so wait and retry.
+CreateThread(function()
+    Wait(1000)
+    addSuggestions()
+end)
+AddEventHandler('onClientResourceStart', function(res)
+    if res == 'chat' then SetTimeout(500, addSuggestions) end
+end)
 
 -- Diagnostics: `sdtape_dbg` prints what the client has; `sdtape_dbg winding ccw|cw|both` changes how tape is drawn, for this session only. Harmless to leave in: it
 -- only ever changes what this one player sees.

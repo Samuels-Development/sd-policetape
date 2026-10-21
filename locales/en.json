@@ -31,6 +31,12 @@
     "kept": "This tape is kept after a restart.",
     "not_kept": "This tape goes at the next restart."
   },
+  "suggest": {
+    "place": "Place police tape",
+    "styles": "Choose the police tape style you place with",
+    "studio": "Make new police tape styles",
+    "admin": "Police tape admin menu"
+  },
   "ui": {
     "categories": {
       "all": "All",
