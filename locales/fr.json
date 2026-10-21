@@ -31,6 +31,12 @@
     "kept": "Ce ruban est conservé après un redémarrage.",
     "not_kept": "Ce ruban disparaît au prochain redémarrage."
   },
+  "suggest": {
+    "place": "Poser de la rubalise",
+    "styles": "Choisir le style de rubalise que vous posez",
+    "studio": "Créer de nouveaux styles de rubalise",
+    "admin": "Menu d'administration de la rubalise"
+  },
   "ui": {
     "categories": {
       "all": "Tous",

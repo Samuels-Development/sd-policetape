@@ -31,6 +31,12 @@
     "kept": "Esta cinta se conserva tras un reinicio.",
     "not_kept": "Esta cinta desaparece en el próximo reinicio."
   },
+  "suggest": {
+    "place": "Colocar cinta policial",
+    "styles": "Elige el estilo de cinta policial con el que colocas",
+    "studio": "Crear nuevos estilos de cinta policial",
+    "admin": "Menú de administración de la cinta policial"
+  },
   "ui": {
     "categories": {
       "all": "Todos",

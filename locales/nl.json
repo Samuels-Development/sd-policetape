@@ -31,6 +31,12 @@
     "kept": "Dit lint blijft na een herstart.",
     "not_kept": "Dit lint verdwijnt bij de volgende herstart."
   },
+  "suggest": {
+    "place": "Politielint ophangen",
+    "styles": "Kies de politielintstijl waarmee je ophangt",
+    "studio": "Nieuwe politielintstijlen maken",
+    "admin": "Beheermenu voor politielint"
+  },
   "ui": {
     "categories": {
       "all": "Alles",
