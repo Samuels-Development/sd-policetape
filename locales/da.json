@@ -29,7 +29,9 @@
     "admin_last_holder": "Mindst én pæl eller kegle skal være tilgængelig.",
     "persist_off": "Spillerne vælger ikke, hvad der bliver gemt på denne server.",
     "kept": "Denne afspærring bliver stående efter en genstart.",
-    "not_kept": "Denne afspærring forsvinder ved næste genstart."
+    "not_kept": "Denne afspærring forsvinder ved næste genstart.",
+    "cut": "Du klippede afspærringen over.",
+    "repaired": "Bundet sammen igen."
   },
   "suggest": {
     "place": "Sæt politiafspærring op",
@@ -73,6 +75,9 @@
       "change_style": "Skift stil",
       "take_down": "Hold for at tage ned",
       "torn": "Revet over",
+      "cut_here": "Klip over her",
+      "repair": "Bind den sammen igen",
+      "cut": "Klippet over",
       "holder_here": "{name} kommer her",
       "knocked_over": "Væltet",
       "stand_up": "Hold for at rejse den op",

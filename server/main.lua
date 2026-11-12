@@ -392,6 +392,7 @@ end)
 ---Tear.RemoveAfter, and it stays cut until someone ties it back. The same people as may take it down.
 RegisterNetEvent('sd-policetape:server:cut', function(id, frac)
     local src = source
+    if type(id) ~= 'number' then return end
     local tape = store.get(id)
     if EDIT.Cut == false then return end
     if not tape then return tell(src, 'notify.not_found') end
@@ -412,6 +413,7 @@ end)
 ---Ties a cut or torn tape back together: it hangs whole between its ends again.
 RegisterNetEvent('sd-policetape:server:repair', function(id)
     local src = source
+    if type(id) ~= 'number' then return end
     local tape = store.get(id)
     if EDIT.Repair == false then return end
     if not tape then return tell(src, 'notify.not_found') end
