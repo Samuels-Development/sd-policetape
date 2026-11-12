@@ -29,6 +29,8 @@
     "admin_last_holder": "Mindestens ein Pfosten oder Kegel muss verfügbar bleiben.",
     "persist_off": "Auf diesem Server wählen Spieler nicht, was erhalten bleibt.",
     "kept": "Dieses Band bleibt nach einem Neustart.",
+    "cut": "Band durchgeschnitten.",
+    "repaired": "Band wieder zusammengeknotet.",
     "not_kept": "Dieses Band verschwindet beim nächsten Neustart."
   },
   "ui": {
@@ -67,6 +69,9 @@
       "change_style": "Stil ändern",
       "take_down": "Gedrückt halten zum Abnehmen",
       "torn": "Gerissen",
+      "cut_here": "Hier durchschneiden",
+      "repair": "Wieder zusammenknoten",
+      "cut": "Durchgeschnitten",
       "holder_here": "Hier kommt hin: {name}",
       "knocked_over": "Umgestoßen",
       "stand_up": "Halten zum Aufstellen",

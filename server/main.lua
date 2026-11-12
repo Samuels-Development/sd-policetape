@@ -17,6 +17,7 @@ local holder = require 'shared.holder'
 local PLACE = config.Placement
 local ITEM = config.Item
 local TEAR = config.Tear
+local EDIT = config.Edit or {} -- (a config.lua from before 1.0.2 has none: both on)
 local HOLD = config.Holders or {}
 local LIMITS = config.Limits
 
@@ -380,6 +381,47 @@ RegisterNetEvent('sd-policetape:server:tear', function(id, frac, net, byPed)
     TriggerClientEvent('sd-policetape:client:tear', -1, tape.id, frac)
 end)
 
+-- Cutting, tying back together ------------------------------------------------------------------
+
+---Someone cuts a tape where they aim at it, from its popup, so people can walk through. It comes
+---apart like a tear, for everybody, but it is marked cut: it is not cleared away after
+---Tear.RemoveAfter, and it stays cut until someone ties it back. The same people as may take it down.
+RegisterNetEvent('sd-policetape:server:cut', function(id, frac)
+    local src = source
+    local tape = store.get(id)
+    if EDIT.Cut == false then return end
+    if not tape then return tell(src, 'notify.not_found') end
+    if tape.torn then return end
+    frac = tonumber(frac)
+    if not frac or frac ~= frac then return end
+    if not mayTouch(src, tape) then return tell(src, 'notify.no_permission') end
+    if not nearTape(src, tape) then return tell(src, 'notify.too_far') end
+    if not allow(src, 'cut', 20, 60) then return tell(src, 'notify.rate_limited') end
+
+    frac = math.max(0.05, math.min(0.95, frac))
+    tape.torn, tape.cut, tape.tornAt = frac, true, os.time()
+    store.touch()
+    TriggerClientEvent('sd-policetape:client:tear', -1, tape.id, frac, true)
+    tell(src, 'notify.cut', nil, 'inform')
+end)
+
+---Ties a cut or torn tape back together: it hangs whole between its ends again.
+RegisterNetEvent('sd-policetape:server:repair', function(id)
+    local src = source
+    local tape = store.get(id)
+    if EDIT.Repair == false then return end
+    if not tape then return tell(src, 'notify.not_found') end
+    if not tape.torn then return end
+    if not mayTouch(src, tape) then return tell(src, 'notify.no_permission') end
+    if not nearTape(src, tape) then return tell(src, 'notify.too_far') end
+    if not allow(src, 'repair', 20, 60) then return tell(src, 'notify.rate_limited') end
+
+    tape.torn, tape.cut, tape.tornAt = false, nil, nil
+    store.touch()
+    TriggerClientEvent('sd-policetape:client:repair', -1, tape.id)
+    tell(src, 'notify.repaired', nil, 'success')
+end)
+
 -- Knocking holders over, standing them up -----------------------------------------------------
 
 ---A client says it just knocked over the post or cone at one end of a tape: with its own ped
@@ -467,7 +509,7 @@ CreateThread(function()
         for id, tape in pairs(store.all()) do
             if config.Lifetime > 0 and now - (tape.created or now) > config.Lifetime * 60 then
                 gone[#gone + 1] = id
-            elseif tape.torn and TEAR.RemoveAfter > 0 and now - (tape.tornAt or now) > TEAR.RemoveAfter then
+            elseif tape.torn and not tape.cut and TEAR.RemoveAfter > 0 and now - (tape.tornAt or now) > TEAR.RemoveAfter then
                 gone[#gone + 1] = id
             end
         end

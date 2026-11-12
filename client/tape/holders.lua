@@ -280,6 +280,33 @@ end
 function holders.detect(ped, now)
     if HOLD.Knock == false then return nil end
     local p = GetEntityCoords(ped)
+    local minVeh = (HOLD.VehicleSpeedKmh or 3.0) / 3.6
+
+    -- Nothing can be knocked over unless the ped is within 2 m of a standing holder or a moving
+    -- vehicle is near tape: then none of the reads below are needed (this runs every frame).
+    local close = false
+    if HOLD.Vehicles ~= false then
+        for i = 1, colliders.count do
+            local c = colliders.list[i]
+            if c.kind == 2 and c.speed >= minVeh then
+                close = true
+                break
+            end
+        end
+    end
+    if not close then
+        for _, e in pairs(entries) do
+            if e.obj and not e.fall then
+                local dx, dy = e.gx - p.x, e.gy - p.y
+                if dx * dx + dy * dy < 4.0 then
+                    close = true
+                    break
+                end
+            end
+        end
+    end
+    if not close then return nil end
+
     local onFoot = not IsPedInAnyVehicle(ped, false) and not IsEntityDead(ped)
     local melee, fx, fy = false, 0.0, 0.0
     local vx, vy, speed = 0.0, 0.0, 0.0
@@ -296,7 +323,6 @@ function holders.detect(ped, now)
             speed = sqrt(vx * vx + vy * vy)
         end
     end
-    local minVeh = (HOLD.VehicleSpeedKmh or 3.0) / 3.6
     local me = PlayerId()
     local out
 

@@ -28,7 +28,7 @@ local function row(tape)
         script = tape.owner == nil,
         created = tape.created,
         length = math.floor(math.sqrt(dx * dx + dy * dy + dz * dz) * 10 + 0.5) / 10,
-        torn = tape.torn and true or false,
+        torn = (tape.torn and not tape.cut) and true or false, -- (cut on purpose: still up, as far as admin goes)
         down = (tape.af or tape.bf) and true or false,
         persist = tape.persist ~= false,
         a = a,
@@ -105,7 +105,7 @@ function admin.init(deps)
         removeTorn = function(src)
             local gone = {}
             for id, tape in pairs(store.all()) do
-                if tape.torn then gone[#gone + 1] = id end
+                if tape.torn and not tape.cut then gone[#gone + 1] = id end
             end
             deps.removeTapes(gone)
             log.info('%s took down %d torn tapes', player.getName(src) or src, #gone)

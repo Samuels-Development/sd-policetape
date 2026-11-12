@@ -29,6 +29,8 @@
     "admin_last_holder": "Al menos un poste o cono tiene que seguir disponible.",
     "persist_off": "En este servidor los jugadores no eligen qué se conserva.",
     "kept": "Esta cinta se conserva tras un reinicio.",
+    "cut": "Cinta cortada.",
+    "repaired": "Cinta atada de nuevo.",
     "not_kept": "Esta cinta desaparece en el próximo reinicio."
   },
   "ui": {
@@ -67,6 +69,9 @@
       "change_style": "Cambiar estilo",
       "take_down": "Mantén para retirar",
       "torn": "Rota",
+      "cut_here": "Cortar aquí",
+      "repair": "Volver a atar",
+      "cut": "Cortada",
       "holder_here": "Aquí irá: {name}",
       "knocked_over": "Derribado",
       "stand_up": "Mantén para levantarlo",

@@ -22,6 +22,7 @@ local store = {}
 ---@field bf table|nil
 ---@field torn number|false
 ---@field tornAt integer|nil
+---@field cut boolean|nil torn on purpose (someone cut it): not cleared by Tear.RemoveAfter
 ---@field persist boolean survives a restart of the server (written to data/tapes.json)
 ---@field owner string|nil identifier of whoever placed it
 ---@field ownerName string|nil
@@ -131,7 +132,7 @@ end
 function store.public(t)
     return {
         id = t.id, style = t.style, a = t.a, b = t.b, ap = t.ap, bp = t.bp,
-        ah = t.ah, bh = t.bh, af = t.af, bf = t.bf, torn = t.torn, persist = t.persist,
+        ah = t.ah, bh = t.bh, af = t.af, bf = t.bf, torn = t.torn, cut = t.cut == true, persist = t.persist,
     }
 end
 

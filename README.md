@@ -145,9 +145,12 @@ Looking at tape, a prompt says **[E] Edit tape**, and <kbd>E</kbd> opens it:
 | Edit tape | Controller | |
 |---|---|---|
 | <kbd>G</kbd> | D-pad left | Change its style |
+| <kbd>H</kbd> | D-pad right | Cut it where you aim, so people can walk through; on cut or torn tape, tie it back together |
 | Hold <kbd>E</kbd> | Hold d-pad down | Take it down |
 | <kbd>F</kbd> | Y | Keep it after a restart, or not |
 | <kbd>Backspace</kbd> | B | Close it (so does looking away) |
+
+Cut tape hangs in two halves from its ends, for everybody, until someone ties it back: it is not cleared away like torn tape (`Tear.RemoveAfter`). Cutting and tying back are for the same people as taking it down, and `Edit.Cut` / `Edit.Repair` in `configs/config.lua` switch them off.
 
 A knocked-over post or cone works the same way: the prompt, then hold <kbd>E</kbd> to stand it up. The edit keys are rebindable in Settings > Key Bindings > FiveM.
 

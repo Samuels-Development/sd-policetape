@@ -510,6 +510,12 @@ end
 ---@type table<integer, table|false> Which collider last touched each node this step (reused).
 local touchedBy = {}
 
+-- The colliders near a chain this step and the nodes each can reach (reused). REACH is how far
+-- past a collider's box a node is still tested: more than a stretched segment plus what a node
+-- moves in one step.
+local REACH = 0.6
+local actCol, actLo, actHi = {}, {}, {}
+
 ---Counts steps, so a collider shared by several tapes is listed once per tape per step.
 local stepMark = 0
 
@@ -563,6 +569,32 @@ function sim.step(c, p, cols, ncols, noPeds)
     local iters = p.iterations
     local hitVeh, hitNode, hitSpeed = nil, nil, -1.0
 
+    -- Which nodes each collider can reach this step: those inside its box grown by REACH now.
+    -- Nothing moves that far within one step, so the passes below test only these, in the same
+    -- order as testing every node against every collider, for the same result. A person against
+    -- the tape touches a handful of its nodes; testing all of them every pass was most of a step.
+    local nact, glo, ghi = 0, n + 1, 0
+    for ci = 1, ncols do
+        local col = cols[ci]
+        local x0, x1 = col.minx - REACH, col.maxx + REACH
+        local y0, y1 = col.miny - REACH, col.maxy + REACH
+        local z0, z1 = col.minz - REACH, col.maxz + REACH
+        local lo, hi = 0, -1
+        for i = 1, n do
+            local xi, yi, zi = x[i], y[i], z[i]
+            if xi > x0 and xi < x1 and yi > y0 and yi < y1 and zi > z0 and zi < z1 then
+                if lo == 0 then lo = i end
+                hi = i
+            end
+        end
+        if lo > 0 then
+            nact = nact + 1
+            actCol[nact], actLo[nact], actHi[nact] = col, lo, hi
+            if lo < glo then glo = lo end
+            if hi > ghi then ghi = hi end
+        end
+    end
+
     for it = 1, iters do
         -- Stretch constraints, sweeping alternate ways so a correction travels both directions.
         local from, to, step = 1, n - 1, 1
@@ -590,13 +622,14 @@ function sim.step(c, p, cols, ncols, noPeds)
         end
 
         -- Collisions inside the loop, so the constraints and the bodies agree by the end.
-        if ncols > 0 then
-            for i = 1, n do
+        if nact > 0 then
+            for i = glo, ghi do
                 if not pin[i] then
                     local xi, yi, zi = x[i], y[i], z[i]
-                    for ci = 1, ncols do
-                        local col = cols[ci]
-                        if xi > col.minx and xi < col.maxx and yi > col.miny and yi < col.maxy
+                    for a = 1, nact do
+                        local col = actCol[a]
+                        if i >= actLo[a] and i <= actHi[a]
+                            and xi > col.minx and xi < col.maxx and yi > col.miny and yi < col.maxy
                             and zi > col.minz and zi < col.maxz then
                             local hit
                             if col.kind == 1 then
@@ -622,7 +655,9 @@ function sim.step(c, p, cols, ncols, noPeds)
             -- Ped capsules only when the tape is not slipping off them; posts always.
             local capsule = noPeds and 3 or 1
             if not noPeds or not span then
-                for j = 1, n - 1 do
+                -- (a segment that crosses a box has both its ends within a segment of it, so
+                -- inside the grown box too)
+                for j = max(1, glo - 1), min(n - 1, ghi) do
                     local j1 = j + 1
                     -- Box of the segment against the box of each capsule.
                     local sx0, sx1 = x[j], x[j1]
@@ -631,10 +666,11 @@ function sim.step(c, p, cols, ncols, noPeds)
                     if sy0 > sy1 then sy0, sy1 = sy1, sy0 end
                     local sz0, sz1 = z[j], z[j1]
                     if sz0 > sz1 then sz0, sz1 = sz1, sz0 end
-                    for ci = 1, ncols do
-                        local col = cols[ci]
+                    for a = 1, nact do
+                        local col = actCol[a]
                         local kind = col.kind
-                        if (kind == 3 or kind == capsule) and sx1 > col.minx and sx0 < col.maxx and sy1 > col.miny
+                        if j1 >= actLo[a] and j <= actHi[a]
+                            and (kind == 3 or kind == capsule) and sx1 > col.minx and sx0 < col.maxx and sy1 > col.miny
                             and sy0 < col.maxy and sz1 > col.minz and sz0 < col.maxz then
                             if pushSegmentOutOfCapsule(c, j, col, margin) then
                                 if not pin[j] then touchedBy[j] = col end

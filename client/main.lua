@@ -71,7 +71,8 @@ RegisterNetEvent('sd-policetape:client:restyle', function(id, style) world.resty
 
 RegisterNetEvent('sd-policetape:client:persist', function(id, on) world.setPersist(id, on) end)
 
-RegisterNetEvent('sd-policetape:client:tear', function(id, frac) world.tear(id, frac) end)
+RegisterNetEvent('sd-policetape:client:tear', function(id, frac, cut) world.tear(id, frac, cut) end)
+RegisterNetEvent('sd-policetape:client:repair', function(id) world.repair(id) end)
 
 -- A post or cone at a tie point went down (`fall` = { x, y, s }) or was stood back up.
 RegisterNetEvent('sd-policetape:client:knock', function(x, y, z, fall) world.knock(x, y, z, fall) end)
@@ -145,9 +146,31 @@ TriggerEvent('chat:addSuggestion', '/' .. config.Commands.Studio, 'Make new poli
 TriggerEvent('chat:addSuggestion', '/' .. config.Commands.Admin, 'Police tape admin menu')
 
 -- Diagnostics: `sdtape_dbg` prints what the client has; `sdtape_dbg winding ccw|cw|both` changes how tape is drawn, for this session only. Harmless to leave in: it
--- only ever changes what this one player sees.
+-- only ever changes what this one player sees. `sdtape_dbg perf [frames]` times what tape costs a frame (the resource monitor's number, by part);
+-- `sdtape_dbg perf [frames] dry` the same with the draw calls left out (tape is not drawn meanwhile), which says what the calls themselves cost.
 RegisterCommand('sdtape_dbg', function(_, args)
     local render = require 'client.tape.render'
+    if args[1] == 'perf' then
+        if world.perf then return end
+        local p = { want = math.max(60, tonumber(args[2]) or 600), frames = 0, setup = 0, tapes = 0, draw = 0, drawn = 0, steps = 0 }
+        local dry = args[3] == 'dry'
+        world.perf = p
+        render.frame.dry = dry or nil
+        print(('[sd-policetape] timing the next %d frames with tape in range%s...'):format(p.want, dry and ', tape not drawn' or ''))
+        CreateThread(function()
+            local started, deadline = GetGameTimer(), GetGameTimer() + 60000
+            while p.frames < p.want and GetGameTimer() < deadline do Wait(100) end
+            world.perf = nil
+            render.frame.dry = nil
+            local f = math.max(1, p.frames)
+            print(('[sd-policetape] perf over %d frames (%.0f fps): %.3f ms a frame = bodies and posts %.3f + tapes and physics %.3f + drawing %.3f | %.1f draw calls, %.2f physics steps a frame'):format(
+                p.frames, p.frames * 1000.0 / math.max(1, GetGameTimer() - started), (p.setup + p.tapes + p.draw) / f,
+                p.setup / f, p.tapes / f, p.draw / f, p.drawn / f, p.steps / f))
+            print(('[sd-policetape] perf split: frame setup %.3f, colliders %.3f, holders %.3f, knock %.3f, pass %.3f'):format(
+                (p.fsetup or 0) / f, (p.fcol or 0) / f, (p.fhold or 0) / f, (p.fknock or 0) / f, (p.fpass or 0) / f))
+        end)
+        return
+    end
     if args[1] == 'winding' and (args[2] == 'ccw' or args[2] == 'cw' or args[2] == 'both') then
         render.winding = args[2]
     end
@@ -156,6 +179,9 @@ RegisterCommand('sdtape_dbg', function(_, args)
         s.total, s.built, s.seen, s.drawn, s.awakeChains, s.push, s.strain, s.resist, s.posts, s.colliders, tostring(s.preview), atlas.TXD, tostring(atlas.isReady()),
         render.winding, #state.styles,
         tostring(state.perms.use), tostring(state.perms.studio), tostring(state.perms.admin)))
+    local known, ready, waiting, partial = require('client.tape.colliders').profileStats()
+    print(('[sd-policetape] vehicle shapes: %d models seen, %d measured, %d waiting%s'):format(known, ready, waiting,
+        partial and (', measuring ' .. partial) or ''))
 end, false)
 
 -- Exports ---------------------------------------------------------------------------------------

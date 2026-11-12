@@ -22,7 +22,7 @@
 ---nothing here draws past `frame.left`, the calls world.lua leaves for this frame.
 local render = {}
 
-local sqrt, sin, cos, floor, abs, min, max, log = math.sqrt, math.sin, math.cos, math.floor, math.abs, math.min, math.max, math.log
+local sqrt, sin, cos, floor, ceil, abs, min, max, log = math.sqrt, math.sin, math.cos, math.floor, math.ceil, math.abs, math.min, math.max, math.log
 local PI = math.pi
 local LN2 = log(2)
 
@@ -33,7 +33,13 @@ local qx, qy, qz = {}, {}, {}      -- drawn positions
 local wx, wy, wz = {}, {}, {}      -- width direction (unit)
 local nx, ny, nz = {}, {}, {}      -- face normal (unit)
 local lit = {}                     -- 0..255 brightness per node
+local free = {}                    -- 0..1 how free each node is to move in the wind (freedom)
 local idx = {}                     -- the nodes drawn this time
+-- The points the quads run between (render.chain, pass 3): the nodes drawn, and between them every
+-- seam of the print. `hard` marks a seam, which no quad runs across (its print would have to wrap).
+local ptx, pty, ptz, pux, puy, puz, pnx, pny, pnz, plit, ps, hard = {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}
+local keep = {}                    -- the points kept (indexes into the above)
+local SEAM_EPS = 1e-6              -- metres: a node this close to a seam is on it
 
 ---Which triangle order is drawn. The engine culls back faces: checked in game on build 3258,
 ---'ccw' (counter-clockwise as the camera sees it, which is what quad() emits) shows and 'cw'
@@ -52,6 +58,7 @@ render.TILE = 0
 ---@field cy number
 ---@field cz number
 ---@field lodK number atlas texels per screen pixel, per metre of distance (level 1)
+---@field pix number|nil metres render.tolerancePx pixels span per metre of distance (nil: draw every node)
 ---@field time number seconds
 ---@field windX number unit horizontal wind direction
 ---@field windY number
@@ -68,29 +75,25 @@ render.TILE = 0
 ---@field txd string
 ---@field txn string
 ---@field left number draw calls still allowed this frame
+---@field dry boolean|nil work everything out but leave the draw calls out (timing only)
 local frame = { left = math.huge }
 render.frame = frame
 
----Wind displacement for one node. `e` is 0 where the tape is held and 1 where it is free.
-local function sway(e, s, phase, tx, ty)
+---The wind on one tape this frame, the same all along it (render.chain adds each node's part): the
+---way across the tape it pushes (unit x, y), the lean downwind, and the size of the wave running
+---along the tape and of the lift. `tx, ty` is the tape's direction on the map (unit).
+local function windOn(phase, tx, ty)
     local f = frame
-    if e <= 0.0 or f.windSpeed <= 0.0 then return 0.0, 0.0, 0.0 end
+    if f.windSpeed <= 0.0 then return 0.0, 0.0, 0.0, 0.0, 0.0 end
     -- Sideways to the tape, the way the wind blows.
     local dx, dy = -ty, tx
-    local l = sqrt(dx * dx + dy * dy)
-    if l < 1e-4 then return 0.0, 0.0, 0.0 end
-    dx, dy = dx / l, dy / l
     local side = dx * f.windX + dy * f.windY
     if side < 0.0 then dx, dy, side = -dx, -dy, -side end
     local t = f.time
-    -- A lean downwind that breathes with the gusts, and a wave running along the tape.
+    -- A lean that breathes with the gusts, and a wave running along the tape.
     local gust = 0.62 + 0.38 * sin(t * 0.73 + phase) * sin(t * 0.31 + phase * 1.7)
     local amp = f.windSpeed * 0.012 * (0.35 + 0.65 * side)
-    local lean = amp * gust
-    local wave = amp * 0.32 * sin(t * 3.4 - s * 2.3 + phase)
-    local off = (lean + wave) * e
-    local lift = amp * 0.22 * e * sin(t * 2.1 - s * 1.7 + phase * 0.5)
-    return dx * off, dy * off, lift
+    return dx, dy, amp * gust, amp * 0.32, amp * 0.22
 end
 
 ---Twist from gusts, in radians, for a node.
@@ -100,10 +103,30 @@ local function twist(e, s, phase)
     return e * f.flutter * (0.6 * sin(f.time * 5.1 + s * 2.9 + phase) + 0.4 * sin(f.time * 8.3 - s * 4.1 + phase * 2.3))
 end
 
----Emits one triangle, in the order(s) the engine is known (or not yet known) to show.
-local function tri(x1, y1, z1, x2, y2, z2, x3, y3, z3, c1, c2, c3, a, u1, v1, u2, v2, u3, v3)
+-- The triangles of a still chain, kept to be drawn again (render.chain); `rec` is the one being
+-- written. REC numbers a triangle: its corners (9), its normal (3), colour, alpha, UVs (6).
+local rec = nil
+local REC = 20
+
+---Draws one triangle that faces the camera, in the order(s) the engine is known (or not yet known)
+---to show.
+local function emit(x1, y1, z1, x2, y2, z2, x3, y3, z3, c, a, u1, v1, u2, v2, u3, v3)
     local f = frame
     local w = render.winding
+    -- (`dry`: everything but the call itself, for `sdtape_dbg perf <frames> dry`)
+    if w ~= 'cw' and f.left > 0 then
+        if not f.dry then DrawSpritePoly(x1, y1, z1, x2, y2, z2, x3, y3, z3, c, c, c, a, f.txd, f.txn, u1, v1, 1.0, u2, v2, 1.0, u3, v3, 1.0) end
+        f.left = f.left - 1
+    end
+    if w ~= 'ccw' and f.left > 0 then
+        if not f.dry then DrawSpritePoly(x1, y1, z1, x3, y3, z3, x2, y2, z2, c, c, c, a, f.txd, f.txn, u1, v1, 1.0, u3, v3, 1.0, u2, v2, 1.0) end
+        f.left = f.left - 1
+    end
+end
+
+---Emits one triangle.
+local function tri(x1, y1, z1, x2, y2, z2, x3, y3, z3, c1, c2, c3, a, u1, v1, u2, v2, u3, v3)
+    local f = frame
     local c = (c1 + c2 + c3) // 3
     -- quad() picks the order for both its triangles at once, but a quad that twists (where tape
     -- turns flat onto the ground or a bonnet, or flutters in a gust) is not flat, and from some
@@ -111,17 +134,37 @@ local function tri(x1, y1, z1, x2, y2, z2, x3, y3, z3, c1, c2, c3, a, u1, v1, u2
     -- turned to face the camera itself.
     local ex, ey, ez = x2 - x1, y2 - y1, z2 - z1
     local gx, gy, gz = x3 - x1, y3 - y1, z3 - z1
-    if (ey * gz - ez * gy) * (f.cx - x1) + (ez * gx - ex * gz) * (f.cy - y1) + (ex * gy - ey * gx) * (f.cz - z1) < 0.0 then
-        x2, y2, z2, x3, y3, z3 = x3, y3, z3, x2, y2, z2
-        u2, v2, u3, v3 = u3, v3, u2, v2
+    local tnx, tny, tnz = ey * gz - ez * gy, ez * gx - ex * gz, ex * gy - ey * gx
+    local r = rec
+    if r then
+        local k = r.n
+        r[k + 1], r[k + 2], r[k + 3], r[k + 4], r[k + 5], r[k + 6], r[k + 7], r[k + 8], r[k + 9] = x1, y1, z1, x2, y2, z2, x3, y3, z3
+        r[k + 10], r[k + 11], r[k + 12], r[k + 13], r[k + 14] = tnx, tny, tnz, c, a
+        r[k + 15], r[k + 16], r[k + 17], r[k + 18], r[k + 19] = u1, v1, u2, v2, u3
+        r[k + 20] = v3
+        r.n = k + REC
     end
-    if w ~= 'cw' and f.left > 0 then
-        DrawSpritePoly(x1, y1, z1, x2, y2, z2, x3, y3, z3, c, c, c, a, f.txd, f.txn, u1, v1, 1.0, u2, v2, 1.0, u3, v3, 1.0)
-        f.left = f.left - 1
+    if tnx * (f.cx - x1) + tny * (f.cy - y1) + tnz * (f.cz - z1) < 0.0 then
+        emit(x1, y1, z1, x3, y3, z3, x2, y2, z2, c, a, u1, v1, u3, v3, u2, v2)
+    else
+        emit(x1, y1, z1, x2, y2, z2, x3, y3, z3, c, a, u1, v1, u2, v2, u3, v3)
     end
-    if w ~= 'ccw' and f.left > 0 then
-        DrawSpritePoly(x1, y1, z1, x3, y3, z3, x2, y2, z2, c, c, c, a, f.txd, f.txn, u1, v1, 1.0, u3, v3, 1.0, u2, v2, 1.0)
-        f.left = f.left - 1
+end
+
+---Draws a still chain again from its kept triangles. Only which way each one faces is worked out
+---anew: the camera moves every frame, the tape did not.
+local function replay(r)
+    local f = frame
+    local cx, cy, cz = f.cx, f.cy, f.cz
+    for k = 0, r.n - 1, REC do
+        if f.left <= 0 then return end
+        local x1, y1, z1, x2, y2, z2, x3, y3, z3 = r[k + 1], r[k + 2], r[k + 3], r[k + 4], r[k + 5], r[k + 6], r[k + 7], r[k + 8], r[k + 9]
+        local c, a, u1, v1, u2, v2, u3, v3 = r[k + 13], r[k + 14], r[k + 15], r[k + 16], r[k + 17], r[k + 18], r[k + 19], r[k + 20]
+        if r[k + 10] * (cx - x1) + r[k + 11] * (cy - y1) + r[k + 12] * (cz - z1) < 0.0 then
+            emit(x1, y1, z1, x3, y3, z3, x2, y2, z2, c, a, u1, v1, u3, v3, u2, v2)
+        else
+            emit(x1, y1, z1, x2, y2, z2, x3, y3, z3, c, a, u1, v1, u2, v2, u3, v3)
+        end
     end
 end
 
@@ -241,32 +284,125 @@ function render.cost(c, stride)
             tile = tile + 1
         until tile * R > s[n] - 1e-7 * R
     else
+        -- A quad per segment, and one more for every seam inside it (as render.chain lays them out).
         local i = 1
         while i < n do
             local j = min(i + stride, n)
-            quads = quads + 1 + max(0, floor(s[j] / R - 1e-7) - floor(s[i] / R))
+            quads = quads + 1 + max(0, ceil((s[j] - SEAM_EPS) / R) - 1 - floor((s[i] + SEAM_EPS) / R))
             i = j
         end
     end
     return quads * (render.winding == 'both' and 4 or 2)
 end
 
+---Closer than this (metres), the turns round a post have 10 sides; further, 6. Round a 3 cm post a
+---hexagon is under a pixel off a circle from here on, and each side costs two draw calls.
+render.WRAP_ROUND = 4.0
+
 ---Draw calls one render.wrap makes at most `d` metres away (seen from anywhere but straight along
 ---the post): just over half its sides face the camera.
 ---@param d number
 ---@return integer
 function render.wrapCost(d)
-    local quads = d < 12.0 and 6 or 4
+    local quads = d < render.WRAP_ROUND and 6 or 4
     return quads * (render.winding == 'both' and 4 or 2)
 end
 
----Draws a chain. `uv` is the atlas rectangles of its style (atlas.acquire).
----@param c table
----@param uv table<integer, number[]>
----@param phase number per-tape random phase, so neighbouring tapes do not sway in step
----@param alpha integer 0..255
----@param stride? integer draw every stride-th node (far away, the shape needs fewer), or render.TILE
-function render.chain(c, uv, phase, alpha, stride)
+---Leaving nodes out (render.chain). Every triangle is a draw call, and draw calls are most of
+---what tape costs a frame, so a node is only drawn where the shape needs it.
+---`frame.pix` is how many metres `render.tolerancePx` pixels span one metre from the camera
+---(world.lua sets it each frame); with it unset, every node is drawn.
+render.simplify = true
+render.tolerancePx = 1.5
+local MIN_TOL = 0.0015 -- metres: closer than this to the camera, a pixel is never the measure
+local MAX_RUN = 16     -- points one straight stretch may skip over at most
+
+---Lays out pass 3's points from the m nodes in idx: each node, and between two nodes every seam of
+---the print they straddle, its position, width direction, normal and light in between theirs.
+---@return integer np how many points
+local function layPoints(m, s, R)
+    local np = 0
+    for k = 1, m do
+        local i = idx[k]
+        if k > 1 then
+            local h = idx[k - 1]
+            local sa = s[h]
+            local span = s[i] - sa
+            for tile = floor((sa + SEAM_EPS) / R) + 1, ceil((s[i] - SEAM_EPS) / R) - 1 do
+                local sm = tile * R
+                local t = (sm - sa) / span
+                local kwx, kwy, kwz = wx[h] + (wx[i] - wx[h]) * t, wy[h] + (wy[i] - wy[h]) * t, wz[h] + (wz[i] - wz[h]) * t
+                local kl = sqrt(kwx * kwx + kwy * kwy + kwz * kwz)
+                if kl > 1e-6 then kwx, kwy, kwz = kwx / kl, kwy / kl, kwz / kl end
+                np = np + 1
+                ptx[np], pty[np], ptz[np] = qx[h] + (qx[i] - qx[h]) * t, qy[h] + (qy[i] - qy[h]) * t, qz[h] + (qz[i] - qz[h]) * t
+                pux[np], puy[np], puz[np] = kwx, kwy, kwz
+                pnx[np], pny[np], pnz[np] = nx[h] + (nx[i] - nx[h]) * t, ny[h] + (ny[i] - ny[h]) * t, nz[h] + (nz[i] - nz[h]) * t
+                plit[np] = floor(lit[h] + (lit[i] - lit[h]) * t)
+                ps[np], hard[np] = sm, true
+            end
+        end
+        local r = s[i] / R
+        np = np + 1
+        ptx[np], pty[np], ptz[np] = qx[i], qy[i], qz[i]
+        pux[np], puy[np], puz[np] = wx[i], wy[i], wz[i]
+        pnx[np], pny[np], pnz[np] = nx[i], ny[i], nz[i]
+        plit[np] = lit[i]
+        ps[np], hard[np] = s[i], abs(r - floor(r + 0.5)) * R < SEAM_EPS
+    end
+    return np
+end
+
+---Whether the ribbon can run straight from point a to point b: every point between, at the same
+---point along the tape, within the tolerance of the straight ribbon, edges included (its centre's
+---distance plus how far its width direction is off, times half the width). A quad whose ends face
+---different ways is not flat, and its two triangles then fold away from it by up to half the width
+---times how much its width direction turns: that counts too.
+local function straight(a, b, hw, pix, cx, cy, cz)
+    local sa = ps[a]
+    local len = ps[b] - sa
+    if len <= 1e-6 then return true end
+    local inv = 1.0 / len
+    local ax, ay, az, dx, dy, dz = ptx[a], pty[a], ptz[a], ptx[b] - ptx[a], pty[b] - pty[a], ptz[b] - ptz[a]
+    local awx, awy, awz, dwx, dwy, dwz = pux[a], puy[a], puz[a], pux[b] - pux[a], puy[b] - puy[a], puz[b] - puz[a]
+    local fold = 0.5 * hw * sqrt(dwx * dwx + dwy * dwy + dwz * dwz)
+    for k = a + 1, b - 1 do
+        local t = (ps[k] - sa) * inv
+        local ex, ey, ez = ptx[k] - ax - dx * t, pty[k] - ay - dy * t, ptz[k] - az - dz * t
+        local fx, fy, fz = pux[k] - awx - dwx * t, puy[k] - awy - dwy * t, puz[k] - awz - dwz * t
+        local vx, vy, vz = ptx[k] - cx, pty[k] - cy, ptz[k] - cz
+        local tol = pix * sqrt(vx * vx + vy * vy + vz * vz)
+        if tol < MIN_TOL then tol = MIN_TOL end
+        if sqrt(ex * ex + ey * ey + ez * ez) + hw * sqrt(fx * fx + fy * fy + fz * fz) + fold > tol then return false end
+    end
+    return true
+end
+
+---Keeps, from each kept point, the furthest the ribbon can run straight to, never past a seam: a
+---repeat of the print that is straight enough is one quad, seam to seam, whatever nodes lie in it.
+---Fills keep[] and returns how many.
+local function simplify(np)
+    local f = frame
+    local hw, pix, cx, cy, cz = f.halfWidth, f.pix, f.cx, f.cy, f.cz
+    keep[1] = 1
+    local nk, a = 1, 1
+    while a < np do
+        -- Straight on to the next seam (or the end) if it can: mostly it can, and that is one test.
+        local b = a + 1
+        while b < np and not hard[b] do b = b + 1 end
+        if b - a > MAX_RUN or not straight(a, b, hw, pix, cx, cy, cz) then
+            b = a + 1
+            while b < np and not hard[b] and b - a < MAX_RUN and straight(a, b + 1, hw, pix, cx, cy, cz) do b = b + 1 end
+        end
+        nk = nk + 1
+        keep[nk] = b
+        a = b
+    end
+    return nk
+end
+
+---Works a chain's ribbon out and draws it (render.chain).
+local function shape(c, uv, phase, alpha, stride)
     local f = frame
     local n = c.n
     local x, y, z, s = c.x, c.y, c.z, c.s
@@ -286,18 +422,28 @@ function render.chain(c, uv, phase, alpha, stride)
         idx[m] = n
     end
 
-    -- 1. Where each node is drawn: physics plus wind.
+    -- 1. Where each node is drawn: physics plus wind, as much as the node is free to move
+    -- (`free`, kept for the twist below) and nothing presses on it.
     local ex, ey = x[n] - x[1], y[n] - y[1]
     local el = sqrt(ex * ex + ey * ey)
     local tx, ty = 1.0, 0.0
     if el > 1e-4 then tx, ty = ex / el, ey / el end
+    local swx, swy, lean, wave, lift = windOn(phase, tx, ty)
+    local time = f.time
+    local pressed = c.cw
     for k = 1, m do
         local i = idx[k]
         local e = c.pin[i] and 0.0 or freedom(c, i)
-        local ox, oy, oz = sway(e, s[i], phase, tx, ty)
-        -- Something pressing on the tape holds it still.
-        local hold = 1.0 - (c.cw[i] or 0.0)
-        qx[i], qy[i], qz[i] = x[i] + ox * hold, y[i] + oy * hold, z[i] + oz * hold
+        free[i] = e
+        local hold = (1.0 - (pressed[i] or 0.0)) * e
+        if hold > 0.0 and wave > 0.0 then
+            local si = s[i]
+            local off = (lean + wave * sin(time * 3.4 - si * 2.3 + phase)) * hold
+            qx[i], qy[i] = x[i] + swx * off, y[i] + swy * off
+            qz[i] = z[i] + lift * hold * sin(time * 2.1 - si * 1.7 + phase * 0.5)
+        else
+            qx[i], qy[i], qz[i] = x[i], y[i], z[i]
+        end
     end
 
     -- 2. The ribbon's width direction and face normal at each node.
@@ -350,7 +496,7 @@ function render.chain(c, uv, phase, alpha, stride)
         end
 
         -- Gust twist about the tape's own axis.
-        local th = c.pin[i] and 0.0 or twist(freedom(c, i) * (1.0 - cw), s[i], phase)
+        local th = c.pin[i] and 0.0 or twist(free[i] * (1.0 - cw), s[i], phase)
         if th ~= 0.0 then
             local ct, st = cos(th), sin(th)
             local cx_, cy_, cz_ = tty * uz - ttz * uy, ttz * ux - ttx * uz, ttx * uy - tty * ux
@@ -375,37 +521,68 @@ function render.chain(c, uv, phase, alpha, stride)
         return
     end
 
-    -- 3. Quads, segment by segment.
+    -- 3. Quads. The points they run between are the nodes and the print's seams (a quad cannot run
+    -- across a seam). Where the ribbon between two kept points stays within a pixel or two of the
+    -- points in between, those are left out: a hanging tape is a gentle curve, so most of a repeat
+    -- is one quad; a bend round a leg or a gust's ripple keeps every node it needs.
     local R = f.repeatLen
-    local cxp, cyp, czp = f.cx, f.cy, f.cz
-    for k = 1, m - 1 do
-        local i, j = idx[k], idx[k + 1]
-        local mx, my, mz = (qx[i] + qx[j]) * 0.5, (qy[i] + qy[j]) * 0.5, (qz[i] + qz[j]) * 0.5
-        local vx, vy, vz = cxp - mx, cyp - my, czp - mz
-        local rect = mip(uv, sqrt(vx * vx + vy * vy + vz * vz))
-
-        local front = (nx[i] + nx[j]) * vx + (ny[i] + ny[j]) * vy + (nz[i] + nz[j]) * vz >= 0.0
-
-        -- One quad per repeat of the print the segment covers: split at every seam.
-        local sa, sb = s[i], s[j]
-        local ax, ay, az, awx, awy, awz, ca = qx[i], qy[i], qz[i], wx[i], wy[i], wz[i], lit[i]
-        local from = sa
-        local tile = floor(sa / R)
-        local last = floor(sb / R - 1e-7)
-        while tile < last do
-            local sm = (tile + 1) * R
-            local t = (sm - sa) / (sb - sa)
-            local kx, ky, kz = qx[i] + (qx[j] - qx[i]) * t, qy[i] + (qy[j] - qy[i]) * t, qz[i] + (qz[j] - qz[i]) * t
-            local kwx, kwy, kwz = wx[i] + (wx[j] - wx[i]) * t, wy[i] + (wy[j] - wy[i]) * t, wz[i] + (wz[j] - wz[i]) * t
-            local kl = sqrt(kwx * kwx + kwy * kwy + kwz * kwz)
-            if kl > 1e-6 then kwx, kwy, kwz = kwx / kl, kwy / kl, kwz / kl end
-            local kc = floor(lit[i] + (lit[j] - lit[i]) * t)
-            quad(ax, ay, az, awx, awy, awz, kx, ky, kz, kwx, kwy, kwz, ca, kc, from, sm, tile, rect, front, alpha)
-            ax, ay, az, awx, awy, awz, ca, from = kx, ky, kz, kwx, kwy, kwz, kc, sm
-            tile = tile + 1
-        end
-        quad(ax, ay, az, awx, awy, awz, qx[j], qy[j], qz[j], wx[j], wy[j], wz[j], ca, lit[j], from, sb, tile, rect, front, alpha)
+    local np = layPoints(m, s, R)
+    local nk
+    if f.pix and render.simplify then
+        nk = simplify(np)
+    else
+        for k = 1, np do keep[k] = k end
+        nk = np
     end
+    local cxp, cyp, czp = f.cx, f.cy, f.cz
+    for k = 1, nk - 1 do
+        local a, b = keep[k], keep[k + 1]
+        local vx, vy, vz = cxp - (ptx[a] + ptx[b]) * 0.5, cyp - (pty[a] + pty[b]) * 0.5, czp - (ptz[a] + ptz[b]) * 0.5
+        local rect = mip(uv, sqrt(vx * vx + vy * vy + vz * vz))
+        local front = (pnx[a] + pnx[b]) * vx + (pny[a] + pny[b]) * vy + (pnz[a] + pnz[b]) * vz >= 0.0
+        -- The repeat this quad is in, and its ends within it (a point on a seam starts the next).
+        local tile = floor((ps[a] + ps[b]) * 0.5 / R)
+        local sa, sb = max(ps[a], tile * R), min(ps[b], (tile + 1) * R)
+        quad(ptx[a], pty[a], ptz[a], pux[a], puy[a], puz[a], ptx[b], pty[b], ptz[b], pux[b], puy[b], puz[b],
+            plit[a], plit[b], sa, sb, tile, rect, front, alpha)
+    end
+end
+
+---How long a still chain's triangles are drawn again before its ribbon is worked out anew,
+---seconds. Its wind sway then moves 40 times a second, which looks the same as every frame and
+---costs a third as much at 120 fps (the shape is most of what tape costs; the draw calls are not).
+render.REDRAW = 0.025
+
+---Draws a chain. `uv` is the atlas rectangles of its style (atlas.acquire). A `still` chain (the
+---physics is not moving it) only sways in the wind, so its triangles are drawn again for
+---render.REDRAW before its ribbon is worked out anew.
+---@param c table
+---@param uv table<integer, number[]>
+---@param phase number per-tape random phase, so neighbouring tapes do not sway in step
+---@param alpha integer 0..255
+---@param stride? integer draw every stride-th node (far away, the shape needs fewer), or render.TILE
+---@param still? boolean
+function render.chain(c, uv, phase, alpha, stride, still)
+    local r = c.redraw
+    if not still then
+        if r then r.ok = false end
+        shape(c, uv, phase, alpha, stride)
+        return
+    end
+    local now = frame.time
+    if r and r.ok and now - r.at < render.REDRAW and now >= r.at and r.uv == uv and r.stride == stride
+        and r.alpha == alpha and r.phase == phase then
+        replay(r)
+        return
+    end
+    if not r then
+        r = {}
+        c.redraw = r
+    end
+    r.n, r.at, r.uv, r.stride, r.alpha, r.phase, r.ok = 0, now, uv, stride, alpha, phase, true
+    rec = r
+    shape(c, uv, phase, alpha, stride)
+    rec = nil
 end
 
 ---Draws the turns of tape tied round a post: a short band circling the post at the tie, its
@@ -422,8 +599,7 @@ function render.wrap(px, py, pz, radius, heading, uv, alpha, ux, uy, uz)
     local f = frame
     local vx, vy, vz = f.cx - px, f.cy - py, f.cz - pz
     local d = sqrt(vx * vx + vy * vy + vz * vz)
-    -- (round a 3 cm post, six sides look round from a dozen metres)
-    local steps = d < 12.0 and 10 or 6
+    local steps = d < render.WRAP_ROUND and 10 or 6
     local rect = mip(uv, d)
     local c = floor(min(255.0, f.light * 0.92 * 255.0))
     local circumference = 2 * PI * radius

@@ -97,6 +97,14 @@ return {
         RemoveAfter = 300, -- seconds before torn tape is cleared away (0: it stays until taken down)
     },
 
+    -- In a tape's popup (look at it, press Keys.Remove), Keys.Cut cuts it where you aim, so people
+    -- can walk through, and ties a cut or torn tape back together. The same people as can take it
+    -- down (Config.Access). Cut tape stays cut until someone ties it back: Tear.RemoveAfter is for torn tape only.
+    Edit = {
+        Cut = true,
+        Repair = true,
+    },
+
     -- The posts and cones tape is tied to. Knocked over, a holder goes down for everybody and the
     -- tape goes down with it (slack, or torn if it was already). Every knock is checked by the server.
     Holders = {
@@ -139,9 +147,11 @@ return {
         Remove = 'E', -- hold while looking at tape to take it down (not Left Alt: ox_target / qb-target own it)
         Restyle = 'G', -- while looking at tape: choose another style
         Persist = 'F', -- in a tape's popup: keep it after a restart, or not (Config.PersistChoice)
+        Cut = 'H', -- in a tape's popup: cut it where you aim, or tie a cut or torn tape back together (Config.Edit)
         HoldTime = 900, -- ms to hold Remove
         PadRemove = 'LDOWN_INDEX', -- controller: d-pad down
         PadRestyle = 'LLEFT_INDEX', -- controller: d-pad left
         PadPersist = 'RUP_INDEX', -- controller: Y / triangle
+        PadCut = 'LRIGHT_INDEX', -- controller: d-pad right
     },
 }

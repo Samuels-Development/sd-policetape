@@ -29,6 +29,8 @@
     "admin_last_holder": "At least one post or cone has to stay available.",
     "persist_off": "Players do not choose what is kept on this server.",
     "kept": "This tape is kept after a restart.",
+    "cut": "You cut the tape.",
+    "repaired": "Tied back together.",
     "not_kept": "This tape goes at the next restart."
   },
   "ui": {
@@ -67,6 +69,9 @@
       "change_style": "Change style",
       "take_down": "Hold to take down",
       "torn": "Torn",
+      "cut_here": "Cut here",
+      "repair": "Tie it back together",
+      "cut": "Cut",
       "holder_here": "{name} goes here",
       "knocked_over": "Knocked over",
       "stand_up": "Hold to stand it up",

@@ -29,6 +29,8 @@
     "admin_last_holder": "Er moet minstens één paal of pion beschikbaar blijven.",
     "persist_off": "Op deze server kiezen spelers niet wat bewaard blijft.",
     "kept": "Dit lint blijft na een herstart.",
+    "cut": "Lint doorgeknipt.",
+    "repaired": "Lint weer aan elkaar geknoopt.",
     "not_kept": "Dit lint verdwijnt bij de volgende herstart."
   },
   "ui": {
@@ -67,6 +69,9 @@
       "change_style": "Stijl wijzigen",
       "take_down": "Ingedrukt houden om weg te halen",
       "torn": "Gescheurd",
+      "cut_here": "Hier doorknippen",
+      "repair": "Weer aan elkaar knopen",
+      "cut": "Doorgeknipt",
       "holder_here": "Hier komt: {name}",
       "knocked_over": "Omgevallen",
       "stand_up": "Ingedrukt houden om rechtop te zetten",

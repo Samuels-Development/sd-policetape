@@ -48,6 +48,7 @@ world.params = P
 ---@field ap boolean a post stands under a
 ---@field bp boolean
 ---@field torn number|false where along it the tape broke (0..1)
+---@field cut boolean it broke because someone cut it
 ---@field persist boolean survives a restart of the server
 ---@field chains table[]|nil built chains
 ---@field phase number random sway phase
@@ -62,6 +63,8 @@ world.params = P
 ---@field uv table|nil this frame: its style's atlas rectangles
 ---@field detail integer|nil this frame: the detail it is drawn at (nil: not drawn)
 ---@field cost integer this frame: draw calls at that detail
+---@field lineChain table|nil this frame: its span, when it is whole (colliders.lua checks people against its line)
+---@field simmed boolean this frame: near enough that the physics ran on it
 ---@field wraps boolean this frame: whether the turns round its posts are drawn
 
 ---@type table<integer, Tape>
@@ -187,6 +190,26 @@ local function newTorn(t)
     return sim.newTorn(ax, ay, az, bx, by, bz, TAPE.SegmentLength, sagFor(t.length), t.torn, ties.groundAt, P, ties)
 end
 
+---How far across the map a span's tape is from the straight line between its ends, at most (its
+---sag hangs straight down, so at rest this is about 0). colliders.lua reads the bones only of
+---people this close to the line, plus their reach.
+local function deviation(c)
+    local n = c.n
+    local x, y = c.x, c.y
+    local ax, ay = x[1], y[1]
+    local dx, dy = x[n] - ax, y[n] - ay
+    local l = sqrt(dx * dx + dy * dy)
+    if l < 0.1 then return 0.0 end
+    dx, dy = dx / l, dy / l
+    local worst = 0.0
+    for i = 2, n - 1 do
+        local d = (x[i] - ax) * dy - (y[i] - ay) * dx
+        if d < 0.0 then d = -d end
+        if d > worst then worst = d end
+    end
+    return worst
+end
+
 ---Builds the span of a tape that is not torn, between its ends as they are now.
 local function newSpan(t)
     local ax, ay, az, bx, by, bz = endsOf(t)
@@ -195,6 +218,7 @@ local function newSpan(t)
     local c = sim.newSpan(ax, ay, az, bx, by, bz, TAPE.SegmentLength, sagBetween(t, d), sim.nodeCount(t.length, TAPE.SegmentLength))
     local ok = fillGround(c)
     sim.rest(c)
+    c.dev = deviation(c)
     return c, ok
 end
 
@@ -316,6 +340,7 @@ local function decode(data)
         af = decodeFall(data.af),
         bf = decodeFall(data.bf),
         torn = type(data.torn) == 'number' and data.torn or false,
+        cut = data.cut == true, -- torn on purpose (someone cut it)
         persist = data.persist ~= false, -- survives a restart of the server
         owner = data.owner,
     }
@@ -364,12 +389,13 @@ function world.setPersist(id, on)
     if t then t.persist = on == true end
 end
 
----Tears a tape at fraction `frac` of its length. Its chain splits where it is, keeping how it
----was moving, so it flies apart the way it was hit.
-function world.tear(id, frac)
+---Tears a tape at fraction `frac` of its length (`cut`: someone cut it there on purpose). Its
+---chain splits where it is, keeping how it was moving, so it flies apart the way it was hit.
+function world.tear(id, frac, cut)
     local t = tapes[id]
     if not t or t.torn then return end
     t.torn = frac
+    t.cut = cut == true
     bounds(t)
     if t.chains and #t.chains == 1 then
         local c = t.chains[1]
@@ -384,6 +410,20 @@ function world.tear(id, frac)
         sim.reground(h2, ties.groundAt, 0.0)
         t.chains = { h1, h2 }
         t.groundOk = true
+    end
+end
+
+---Ties a cut or torn tape back together: one span between its ends again, hanging as new. The
+---posts stay where they are (only the chains change), so nothing blinks.
+function world.repair(id)
+    local t = tapes[id]
+    if not t or not t.torn then return end
+    t.torn, t.cut, t.tearSent, t.posts = false, false, nil, nil
+    bounds(t)
+    if t.chains then
+        local c, ok = newSpan(t)
+        t.chains = { c }
+        t.groundOk = ok
     end
 end
 
@@ -529,29 +569,39 @@ local function raySegment(ox, oy, oz, dx, dy, dz, L, ax, ay, az, bx, by, bz)
     local px, py, pz = ox + dx * L * s, oy + dy * L * s, oz + dz * L * s
     local qx, qy, qz = ax + ex * t, ay + ey * t, az + ez * t
     local mx, my, mz = px - qx, py - qy, pz - qz
-    return sqrt(mx * mx + my * my + mz * mz), s * L
+    return sqrt(mx * mx + my * my + mz * mz), s * L, t
 end
 
 ---The tape the camera is pointing at, if any within `reach` metres.
----@return Tape|nil, number|nil distance along the ray
+---@return Tape|nil
+---@return number|nil distance along the ray
+---@return number|nil where along the tape it is pointing, 0..1 from end a (a whole tape only)
 function world.pick(origin, dir, reach, tolerance)
-    local best, bestAlong
+    local best, bestAlong, bestFrac
     tolerance = tolerance or 0.2
     for _, t in ipairs(live) do
         local vx, vy, vz = t.cx - origin.x, t.cy - origin.y, t.cz - origin.z
         local along = vx * dir.x + vy * dir.y + vz * dir.z
         local px, py, pz = vx - dir.x * along, vy - dir.y * along, vz - dir.z * along
         if px * px + py * py + pz * pz < (t.radius + 0.5) ^ 2 and along > -t.radius and along < reach + t.radius then
+            local whole = #t.chains == 1 and not t.torn
             for _, c in ipairs(t.chains) do
                 for i = 1, c.n - 1 do
-                    local d, s = raySegment(origin.x, origin.y, origin.z, dir.x, dir.y, dir.z, reach,
+                    local d, s, u = raySegment(origin.x, origin.y, origin.z, dir.x, dir.y, dir.z, reach,
                         c.x[i], c.y[i], c.z[i], c.x[i + 1], c.y[i + 1], c.z[i + 1])
-                    if d < tolerance and (not bestAlong or s < bestAlong) then best, bestAlong = t, s end
+                    if d < tolerance and (not bestAlong or s < bestAlong) then
+                        best, bestAlong, bestFrac = t, s, nil
+                        if whole then
+                            -- Along the tape's material, as a tear is given (sim.split).
+                            local cs, total = c.s, c.s[c.n] - c.s[1]
+                            if total > 1e-6 then bestFrac = (cs[i] + (cs[i + 1] - cs[i]) * u - cs[1]) / total end
+                        end
+                    end
                 end
             end
         end
     end
-    return best, bestAlong
+    return best, bestAlong, bestFrac
 end
 
 -- Per frame -----------------------------------------------------------------------------------
@@ -563,13 +613,26 @@ frame.repeatLen = TAPE.Repeat
 frame.shading = RENDER.Shading ~= false
 frame.mirror = RENDER.MirrorBack ~= false
 
+-- What only changes slowly (screen size, wind, the clock, rain, being indoors) is read a few
+-- times a second, not every frame: every native call costs, and this runs every frame tape is near.
+local slowAt, screenH = 0, 1080
+
 local function setupFrame()
     local cam = GetFinalRenderedCamCoord()
     frame.cx, frame.cy, frame.cz = cam.x, cam.y, cam.z
-    local fov = GetFinalRenderedCamFov()
-    local _, h = GetActiveScreenResolution()
-    frame.lodK = (1024 / TAPE.Repeat) * 2.0 * tan(rad(fov) * 0.5) / max(h, 480)
-    frame.time = GetGameTimer() / 1000.0
+    local now = GetGameTimer()
+    frame.time = now / 1000.0
+    local slow = now >= slowAt
+    if slow then
+        slowAt = now + 250
+        local _, h = GetActiveScreenResolution()
+        screenH = max(h, 480)
+    end
+    -- Per frame: the field of view changes as soon as someone aims.
+    local perMetre = 2.0 * tan(rad(GetFinalRenderedCamFov()) * 0.5) / screenH
+    frame.lodK = (1024 / TAPE.Repeat) * perMetre
+    frame.pix = render.tolerancePx * perMetre
+    if not slow then return end
 
     local ped = PlayerPedId()
     local inside = GetInteriorFromEntity(ped) ~= 0
@@ -742,6 +805,7 @@ local function simulate(t, dt, ncols, cols)
             while c.acc >= P.dt and steps < 3 do
                 c.acc = c.acc - P.dt
                 steps = steps + 1
+                if world.perf then world.perf.steps = world.perf.steps + 1 end
                 local slipping = c.slip > 0.0
                 local veh, node = sim.step(c, P, cols, (slipping and c.slipAll) and 0 or nall, slipping)
                 if t.id and c.kind == 'span' then
@@ -763,6 +827,7 @@ local function simulate(t, dt, ncols, cols)
             else
                 c.quiet = 0.0
             end
+            if c.kind == 'span' and (steps > 0 or not c.awake) then c.dev = deviation(c) end
         end
     end
 end
@@ -846,7 +911,8 @@ local function draw()
                 end
             end
         end
-        if t.detail and t.seenD < 40.0 then
+        -- (further than this, the turns round a post are a few pixels: not worth their draw calls)
+        if t.detail and t.seenD < 25.0 then
             local cost = render.wrapCost(t.seenD) * holderCount(t)
             if cost <= room then
                 room = room - cost
@@ -858,7 +924,8 @@ local function draw()
     for k = 1, #seen do
         local t = seen[k]
         if t.detail then
-            for _, c in ipairs(t.chains) do render.chain(c, t.uv, t.phase, 255, t.detail) end
+            -- (a chain the physics is not moving only sways: render.chain draws it again for a bit)
+            for _, c in ipairs(t.chains) do render.chain(c, t.uv, t.phase, 255, t.detail, not (t.simmed and c.awake)) end
         end
     end
     for k = 1, #seen do
@@ -930,21 +997,67 @@ CreateThread(function()
     end
 end)
 
+-- The boxes colliders.update builds bodies near (reused every frame).
+local boxes, previewBox = {}, {}
+
 -- Simulate and draw, every frame there is anything to.
 CreateThread(function()
     while true do
         if #live == 0 and not preview then
             Wait(400)
         else
+            -- `sdtape_dbg perf` times the three parts of a frame. The clock only counts whole
+            -- milliseconds, which averages out over the hundreds of frames it is read for.
+            local perf = world.perf
+            local t0 = perf and GetNetworkTimeAccurate()
             local dt = GetFrameTime()
             setupFrame()
-            if PHYS.Enabled then colliders.update() end
+            local ta = perf and GetNetworkTimeAccurate()
+            if PHYS.Enabled then
+                -- Bodies are only built near tape: every tape's box, and the one being placed.
+                local nbox = 0
+                for i = 1, #live do
+                    local t = live[i]
+                    local chains = t.chains
+                    if chains then
+                        nbox = nbox + 1
+                        boxes[nbox] = t
+                        -- A whole tape: colliders.lua also checks people against its line.
+                        local c = not t.torn and chains[2] == nil and chains[1]
+                        t.lineChain = (c and c.kind == 'span' and c.dev) and c or nil
+                    end
+                end
+                local p = preview
+                if p and p.chain then
+                    local c, b = p.chain, previewBox
+                    b.minx, b.maxx, b.miny, b.maxy, b.minz, b.maxz = math.huge, -math.huge, math.huge, -math.huge, math.huge, -math.huge
+                    for i = 1, c.n do
+                        b.minx, b.maxx = min(b.minx, c.x[i] - 0.5), max(b.maxx, c.x[i] + 0.5)
+                        b.miny, b.maxy = min(b.miny, c.y[i] - 0.5), max(b.maxy, c.y[i] + 0.5)
+                        b.minz, b.maxz = min(b.minz, c.z[i] - 0.5), max(b.maxz, c.z[i] + 0.5)
+                    end
+                    nbox = nbox + 1
+                    boxes[nbox] = b
+                end
+                colliders.update(boxes, nbox)
+            end
+            local tb = perf and GetNetworkTimeAccurate()
 
             local ped = PlayerPedId()
             local me = GetEntityCoords(ped)
             holders.update()
+            local tc = perf and GetNetworkTimeAccurate()
             knockOver(ped, GetGameTimer())
+            local td = perf and GetNetworkTimeAccurate()
             if PHYS.Enabled then holders.passVehicles(me.x, me.y) end
+            local t1 = perf and GetNetworkTimeAccurate()
+            if perf then
+                perf.fsetup = (perf.fsetup or 0) + (ta - t0)
+                perf.fcol = (perf.fcol or 0) + (tb - ta)
+                perf.fhold = (perf.fhold or 0) + (tc - tb)
+                perf.fknock = (perf.fknock or 0) + (td - tc)
+                perf.fpass = (perf.fpass or 0) + (t1 - td)
+            end
 
             local drawSq = RENDER.DrawDistance
             local nseen = 0
@@ -952,11 +1065,13 @@ CreateThread(function()
                 local t = live[i]
                 if t and t.chains then
                     followHolders(t)
+                    t.simmed = false
                     if PHYS.Enabled then
                         local dx, dy, dz = me.x - t.cx, me.y - t.cy, me.z - t.cz
                         if dx * dx + dy * dy + dz * dz < (PHYS.SimDistance + t.radius) ^ 2 then
                             local cols, ncols = gather(t)
                             simulate(t, dt, ncols, cols)
+                            t.simmed = true
                         end
                     end
 
@@ -989,7 +1104,16 @@ CreateThread(function()
                 end
             end
 
+            local t2 = perf and GetNetworkTimeAccurate()
             draw()
+            if perf then
+                local t3 = GetNetworkTimeAccurate()
+                perf.frames = perf.frames + 1
+                perf.setup = perf.setup + (t1 - t0)
+                perf.tapes = perf.tapes + (t2 - t1)
+                perf.draw = perf.draw + (t3 - t2)
+                perf.drawn = perf.drawn + world.drawn
+            end
             Wait(0)
         end
     end

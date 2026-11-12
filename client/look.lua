@@ -32,7 +32,7 @@ RegisterKeyMapping('+sdtape_remove_pad', 'Police tape: edit, hold to take down (
 -- The popup that is up: for a tape (`id`) or for the holder at end `which` of tape `id`. A hold
 -- only counts once the key has been let go since the popup opened (`armed`), so the press that
 -- opens it never takes the tape down as well.
-local edit = nil ---@type { kind: 'tape'|'fallen', id: integer, which: string|nil, label: string|nil, armed: boolean, lostAt: integer|nil }|nil
+local edit = nil ---@type { kind: 'tape'|'fallen', id: integer, which: string|nil, label: string|nil, armed: boolean, lostAt: integer|nil, frac: number|nil }|nil
 
 local function restyle()
     if not edit or edit.kind ~= 'tape' or nui.busy() or place.active then return end
@@ -50,6 +50,27 @@ RegisterCommand('sdtape_restyle', restyle, false)
 RegisterKeyMapping('sdtape_restyle', 'Police tape: change style of the tape you are editing', 'keyboard', KEYS.Restyle)
 RegisterCommand('sdtape_restyle_pad', restyle, false)
 RegisterKeyMapping('sdtape_restyle_pad', 'Police tape: change style (controller)', 'PAD_DIGITALBUTTON', KEYS.PadRestyle)
+
+local EDIT = config.Edit or {} -- (a config.lua from before 1.0.2 has none: both on)
+local CUT_KEY, PAD_CUT_KEY = KEYS.Cut or 'H', KEYS.PadCut or 'LRIGHT_INDEX'
+
+---Cuts the tape in the popup where the player aims at it, so people can walk through, or ties a
+---cut or torn one back together. The server checks it and tells everyone.
+local function cutOrRepair()
+    if not edit or edit.kind ~= 'tape' or nui.busy() or place.active then return end
+    local tape = world.get(edit.id)
+    if not tape then return end
+    if tape.torn then
+        if EDIT.Repair ~= false then TriggerServerEvent('sd-policetape:server:repair', tape.id) end
+    elseif EDIT.Cut ~= false and edit.frac then
+        TriggerServerEvent('sd-policetape:server:cut', tape.id, edit.frac)
+    end
+end
+
+RegisterCommand('sdtape_cut', cutOrRepair, false)
+RegisterKeyMapping('sdtape_cut', 'Police tape: cut the tape you are editing where you aim, or tie it back together', 'keyboard', CUT_KEY)
+RegisterCommand('sdtape_cut_pad', cutOrRepair, false)
+RegisterKeyMapping('sdtape_cut_pad', 'Police tape: cut it, or tie it back together (controller)', 'PAD_DIGITALBUTTON', PAD_CUT_KEY)
 
 ---Whether players may say per tape if it survives a restart (the admin menu can change both).
 local function choosing()
@@ -129,10 +150,12 @@ CreateThread(function()
         local busy = nui.busy()
 
         local tape, fallen, fallenTape, fallenEnd = nil, nil, nil, nil
+        local aimFrac -- where along the tape the crosshair is (a whole tape only), for cutting there
         if able and not busy then
             local cam = GetFinalRenderedCamCoord()
             local reach = 4.0 + #(cam - GetEntityCoords(ped))
-            tape = world.pick(cam, camDir(), reach, 0.22)
+            local _
+            tape, _, aimFrac = world.pick(cam, camDir(), reach, 0.22)
             if not tape and HOLD.StandUp ~= false then
                 local p, f = GetEntityCoords(ped), GetEntityForwardVector(ped)
                 fallen, fallenTape, fallenEnd = world.fallenNear(p.x, p.y, p.z, f.x, f.y, 1.8)
@@ -151,6 +174,7 @@ CreateThread(function()
             end
             if same then
                 edit.lostAt = nil
+                if edit.kind == 'tape' and aimFrac then edit.frac = aimFrac end
             else
                 edit.lostAt = edit.lostAt or now
                 if now - edit.lostAt > LOSE_MS then closeEdit() end
@@ -161,7 +185,7 @@ CreateThread(function()
         -- Opening it: the edit key, while the prompt is up.
         if not edit and pressed and able and not busy and (tape or fallen) then
             if tape then
-                edit = { kind = 'tape', id = tape.id, armed = false }
+                edit = { kind = 'tape', id = tape.id, armed = false, frac = aimFrac }
             elseif fallen and fallenTape then
                 edit = { kind = 'fallen', id = fallenTape, which = fallenEnd, label = fallen.def.label, armed = false }
             end
@@ -184,8 +208,14 @@ CreateThread(function()
                 local style = tp and state.style(tp.style)
                 local keys = {
                     { k = keyName('sdtape_restyle', KEYS.Restyle, 'sdtape_restyle_pad', KEYS.PadRestyle), t = t('ui.hud.change_style') },
-                    { k = removeKey, t = t('ui.hud.take_down') },
                 }
+                local cutKey = keyName('sdtape_cut', CUT_KEY, 'sdtape_cut_pad', PAD_CUT_KEY)
+                if tp and tp.torn and EDIT.Repair ~= false then
+                    keys[#keys + 1] = { k = cutKey, t = t('ui.hud.repair') }
+                elseif tp and not tp.torn and EDIT.Cut ~= false then
+                    keys[#keys + 1] = { k = cutKey, t = t('ui.hud.cut_here') }
+                end
+                keys[#keys + 1] = { k = removeKey, t = t('ui.hud.take_down') }
                 if tp and choosing() then
                     keys[#keys + 1] = { k = keyName('sdtape_persist', KEYS.Persist or 'F', 'sdtape_persist_pad', KEYS.PadPersist or 'RUP_INDEX'), t = tp.persist and t('ui.hud.kept') or t('ui.hud.not_kept') }
                 end
@@ -194,7 +224,7 @@ CreateThread(function()
                     mode = 'look',
                     styleId = tp and tp.style or state.defaultStyle(),
                     title = style and style.label or nil,
-                    line = tp and tp.torn and t('ui.hud.torn') or nil,
+                    line = tp and tp.torn and t(tp.cut and 'ui.hud.cut' or 'ui.hud.torn') or nil,
                     lineKind = 'warn',
                     keys = keys,
                 })
