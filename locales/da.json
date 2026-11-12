@@ -1,0 +1,374 @@
+{
+  "notify": {
+    "title": "Politiafspærring",
+    "no_permission": "Du har ikke lov til det.",
+    "no_item": "Du skal bruge en rulle politiafspærring.",
+    "placed": "Afspærring sat op.",
+    "removed": "Afspærring taget ned.",
+    "restyled": "Afspærringens stil er ændret.",
+    "refunded": "Din rulle blev givet tilbage.",
+    "too_long": "Det er for langt til én afspærring (højst {max} m).",
+    "too_short": "Punkterne ligger for tæt på hinanden.",
+    "too_far": "Du er for langt væk fra stedet, hvor afspærringen skal sidde.",
+    "limit_player": "Du har nået din grænse på {max} afspærringer.",
+    "limit_server": "Der er allerede for meget afspærring på serveren.",
+    "rate_limited": "Tag det lidt roligere.",
+    "in_vehicle": "Stig ud af køretøjet først.",
+    "cleared": "Tog {count} afspærringer ned.",
+    "cleared_none": "Der er ingen afspærring at tage ned her.",
+    "studio_saved": "Gemte \"{name}\".",
+    "studio_deleted": "Slettede \"{name}\".",
+    "studio_invalid": "Stilen kunne ikke gemmes: {reason}.",
+    "studio_full": "Der er allerede {max} egne stile. Slet en først.",
+    "unknown_style": "Den afspærringsstil findes ikke.",
+    "not_found": "Den afspærring er der ikke mere.",
+    "style_unavailable": "Den afspærringsstil er ikke tilgængelig.",
+    "holder_unavailable": "Den pæl eller kegle er ikke tilgængelig.",
+    "admin_invalid": "Det kunne ikke lade sig gøre.",
+    "admin_last_style": "Mindst én afspærringsstil skal være tilgængelig.",
+    "admin_last_holder": "Mindst én pæl eller kegle skal være tilgængelig.",
+    "persist_off": "Spillerne vælger ikke, hvad der bliver gemt på denne server.",
+    "kept": "Denne afspærring bliver stående efter en genstart.",
+    "not_kept": "Denne afspærring forsvinder ved næste genstart."
+  },
+  "suggest": {
+    "place": "Sæt politiafspærring op",
+    "styles": "Vælg den afspærringsstil, du sætter op med",
+    "studio": "Lav nye afspærringsstile",
+    "admin": "Adminmenu til politiafspærring"
+  },
+  "ui": {
+    "categories": {
+      "all": "Alle",
+      "police": "Politi",
+      "federal": "Forbundspoliti",
+      "crime": "Gerningssted",
+      "fire": "Brand",
+      "ems": "Lægehjælp",
+      "hazard": "Fare",
+      "utility": "Forsyning",
+      "plain": "Almindelig",
+      "international": "International",
+      "custom": "Egne"
+    },
+    "hud": {
+      "placing": "Sætter afspærring op",
+      "aim_first": "Sigt der, hvor afspærringen starter",
+      "aim_next": "Sigt der, hvor afspærringen skal hen",
+      "set_point": "Start her",
+      "tie_off": "Bind af her",
+      "style": "Stil",
+      "all_styles": "Alle stile",
+      "wheel": "Hjul",
+      "dpad": "Retningskors",
+      "done": "Færdig",
+      "cancel": "Annuller",
+      "post_here": "Her kommer en pæl",
+      "length": "{length} m",
+      "too_long": "For langt: højst {max} m",
+      "too_short": "For kort",
+      "blocked": "Der er noget i vejen",
+      "too_far": "For langt fra dig",
+      "no_surface": "Intet at binde den fast til",
+      "change_style": "Skift stil",
+      "take_down": "Hold for at tage ned",
+      "torn": "Revet over",
+      "holder_here": "{name} kommer her",
+      "knocked_over": "Væltet",
+      "stand_up": "Hold for at rejse den op",
+      "edit_tape": "Rediger afspærring",
+      "stand_prompt": "Rejs den op",
+      "close": "Luk",
+      "kept": "Bliver efter en genstart",
+      "not_kept": "Forsvinder ved en genstart"
+    },
+    "picker": {
+      "title": "Afspærringsstile",
+      "search": "Søg i stile",
+      "new_style": "Ny stil",
+      "close": "Luk",
+      "empty": "Ingen stil matcher \"{query}\"",
+      "count": "{count} stile",
+      "choose": "vælg",
+      "use": "brug",
+      "exit": "luk",
+      "yours": "Dine",
+      "by": "af {name}"
+    },
+    "studio": {
+      "title": "Afspærringsstudie",
+      "yours": "Dine stile",
+      "none": "Ingen egne stile endnu. Brug Ny stil for at tage udgangspunkt i en afspærring og gøre den til din egen.",
+      "start_from": "Start fra",
+      "new_style": "Ny stil",
+      "name": "Navn",
+      "category": "Kategori",
+      "region": "Landekode",
+      "background": "Baggrund",
+      "pattern": "Mønster",
+      "pattern_size": "Mønsterstørrelse",
+      "pattern_angle": "Vinkel",
+      "edges": "Kantbånd",
+      "edge_size": "Båndbredde",
+      "text": "Tekst",
+      "add_line": "Tilføj tekst",
+      "line_placeholder": "MÅ IKKE PASSERES",
+      "font": "Skrifttype",
+      "text_color": "Tekstfarve",
+      "text_size": "Bogstavhøjde",
+      "spacing": "Bogstavafstand",
+      "italic": "Kursiv",
+      "plate": "Boks bag teksten",
+      "plate_padding": "Boksens luft",
+      "outline": "Kontur",
+      "outline_width": "Konturbredde",
+      "separator": "Mellem teksterne",
+      "separator_color": "Mærkets farve",
+      "repeats": "Gentagelser pr. 1,2 m",
+      "close_up": "Tæt på",
+      "at_10": "På 10 m",
+      "at_30": "På 30 m",
+      "save": "Gem stil",
+      "save_new": "Gem som ny stil",
+      "saved": "Gemt",
+      "saving": "Gemmer",
+      "delete": "Slet",
+      "confirm_delete": "Slet for alle",
+      "close": "Luk",
+      "unsaved": "Ugemte ændringer",
+      "off": "Fra",
+      "on": "Til",
+      "patterns": {
+        "none": "Ingen",
+        "diagonal": "Striber",
+        "blocks": "Blokke",
+        "checker": "Tern",
+        "chevron": "Vinkler",
+        "band": "Midterbånd",
+        "dashes": "Streger",
+        "dots": "Prikker",
+        "zigzag": "Zigzag",
+        "lines": "Nålestriber"
+      },
+      "separators": {
+        "none": "Ingen",
+        "dot": "Prik",
+        "star": "Stjerne",
+        "bar": "Streg",
+        "slash": "Skråstreg",
+        "diamond": "Rude",
+        "cross": "Kors",
+        "chevron": "Vinkel"
+      },
+      "subtitle": "Lav afspærringsstile til alle på denne server",
+      "details": "Detaljer",
+      "look": "Farver og mønster",
+      "preview": "Forhåndsvisning",
+      "pin": "Fastgør øverst",
+      "unpin": "Frigør",
+      "second_colour": "Anden farve",
+      "fades": {
+        "none": "Fra",
+        "gradient": "Overgang",
+        "split": "Delt"
+      },
+      "pattern_fill": "Tykkelse",
+      "pattern_opacity": "Styrke",
+      "edge_style": "Båndstil",
+      "edge_styles": {
+        "solid": "Massiv",
+        "double": "Dobbelt",
+        "dashed": "Stiplet",
+        "checker": "Ternet"
+      },
+      "edge_inset": "Afstand fra kanten",
+      "alt_color": "Hver anden i",
+      "text_width": "Bogstavbredde",
+      "text_offset": "Højde på afspærringen",
+      "separator_size": "Mærkets størrelse",
+      "plate_radius": "Boksens hjørner",
+      "shadow": "Skygge",
+      "shadow_distance": "Skyggeafstand"
+    },
+    "holders": {
+      "title": "Pæle og kegler",
+      "count": "{count} at vælge imellem",
+      "search": "Søg i pæle og kegler",
+      "empty": "Intet matcher \"{query}\"",
+      "tall": "{height} høj",
+      "close": "Luk",
+      "choose": "vælg",
+      "use": "brug",
+      "exit": "luk"
+    },
+    "admin": {
+      "title": "Politiafspærring",
+      "subtitle": "Al afspærring på serveren og det, politiet må sætte op",
+      "tabs": {
+        "tapes": "Afspærringer",
+        "styles": "Stile",
+        "holders": "Pæle og kegler",
+        "settings": "Indstillinger"
+      },
+      "common": {
+        "just_now": "lige nu",
+        "ago": "for {time} siden",
+        "cancel": "Annuller",
+        "confirm": "Bekræft",
+        "close": "Luk",
+        "all": "Alle",
+        "on": "Til",
+        "off": "Fra",
+        "changed": "Ændret",
+        "changed_hint": "Ændret her; konfigurationen siger {value}",
+        "failed": "Det virkede ikke"
+      },
+      "tapes": {
+        "title": "Afspærringer",
+        "of_total": "{count} af {total}",
+        "search": "Søg på stil, hvem der satte den op, gade eller #id",
+        "filter_all": "Alle",
+        "filter_up": "Oppe",
+        "filter_torn": "Revet over",
+        "empty": "Der er ingen afspærring oppe på serveren.",
+        "no_match": "Ingen afspærring matcher det.",
+        "by_script": "et script",
+        "torn": "Revet over",
+        "down": "Væltet",
+        "length": "{length} m",
+        "away": "{distance} m væk",
+        "remove_torn": "Tag overrevne ned",
+        "remove_all": "Tag alle ned",
+        "teleport": "Gå hen til den",
+        "waypoint": "Rutepunkt",
+        "remove": "Tag den ned",
+        "confirm_all_title": "Tag al afspærring ned?",
+        "confirm_all_body": "Alle {count} afspærringer på serveren tages ned, for alle. Det kan ikke fortrydes.",
+        "confirm_torn_title": "Tag overrevet afspærring ned?",
+        "confirm_torn_body": "{count} overrevne afspærringer tages ned, for alle.",
+        "confirm_go": "Tag ned",
+        "toast_removed": "Afspærring #{id} taget ned",
+        "toast_waypoint": "Rutepunkt sat til afspærring #{id}",
+        "not_kept": "Gemmes ikke",
+        "not_kept_hint": "Forsvinder ved næste genstart",
+        "saving_off_hint": "Gemning er slået fra i Indstillinger: ingen afspærring bliver gemt",
+        "keep": "Behold den efter en genstart",
+        "dont_keep": "Behold den ikke efter en genstart",
+        "toast_kept": "Afspærring #{id} bliver efter en genstart",
+        "toast_not_kept": "Afspærring #{id} forsvinder ved næste genstart"
+      },
+      "styles": {
+        "title": "Stile",
+        "hint": "Slå en stil fra, og den udelades i stilvælgeren for alle, også admins. Afspærring, der allerede er sat op i den, forbliver, som den er.",
+        "search": "Søg i stile",
+        "filter_all": "Alle",
+        "filter_on": "Tilgængelige",
+        "filter_off": "Fra",
+        "available": "{on} af {total} tilgængelige",
+        "all_on": "Alle til",
+        "all_off": "Alle fra",
+        "custom": "Afspærringsstudie",
+        "no_match": "Ingen stil matcher det.",
+        "toast_on": "\"{name}\" er tilgængelig",
+        "toast_off": "\"{name}\" er slået fra",
+        "toast_group_on": "{group}: alle tilgængelige",
+        "toast_group_off": "{group}: alle slået fra"
+      },
+      "holders": {
+        "title": "Pæle og kegler",
+        "hint": "Politiet vælger mellem disse med H, mens de sætter op. Slå en fra, og den kan ikke længere stilles op; dem, der allerede står, bliver stående, og afspærring kan stadig bindes til dem.",
+        "available": "{on} af {total} tilgængelige",
+        "all_on": "Alle til",
+        "all_off": "Alle fra",
+        "tall": "{height} høj",
+        "toast_on": "{name} er tilgængelig",
+        "toast_off": "{name} er slået fra",
+        "toast_all_on": "Alle pæle og kegler er tilgængelige",
+        "toast_all_off": "Alle undtagen én er slået fra"
+      },
+      "settings": {
+        "title": "Indstillinger",
+        "hint": "Disse ændrer konfigurationen, mens serveren kører, for alle på én gang, og gemmes i data/settings.json. Sæt en tilbage til det, konfigurationen siger, og den gemmes ikke længere.",
+        "groups": {
+          "tape": "Afspærring",
+          "holders": "Pæle og kegler",
+          "placing": "Opsætning",
+          "item": "Genstand",
+          "saving": "Gemning"
+        },
+        "toast_on": "{name}: til",
+        "toast_off": "{name}: fra",
+        "toggles": {
+          "Tear_Enabled": {
+            "label": "Afspærring kan gå itu",
+            "hint": "Køretøjer, der kører igennem den, og folk, der skubber hårdt, river den over, for alle. Fra: den glider af det, der skubber til den, og springer tilbage på plads."
+          },
+          "Tear_People": {
+            "label": "Folk kan rive afspærring over",
+            "hint": "Den, der trænger igennem afspærring til fods, river den over. Fra: afspærringen holder folk tilbage i stedet."
+          },
+          "Physics_Enabled": {
+            "label": "Afspærring giver efter",
+            "hint": "Afspærring buer rundt om folk og køretøjer, der presser mod den. Fra: afspærring flytter sig aldrig (ingen skub, ingen sønderrivning); vinden får den stadig til at svaje."
+          },
+          "Wind_Enabled": {
+            "label": "Vind",
+            "hint": "Afspærring svajer og vrider sig i spillets vind."
+          },
+          "Holders_Knock": {
+            "label": "Pæle og kegler kan væltes",
+            "hint": "En, der vælter, ligger for alle, og dens afspærring med den."
+          },
+          "Holders_Vehicles": {
+            "label": "Køretøjer vælter dem",
+            "hint": "Et køretøj, der kører ind i en, vælter den og sender den et stykke ad vejen."
+          },
+          "Holders_Kick": {
+            "label": "Spark vælter dem",
+            "hint": "Et spark eller et slag lige ved en vælter den."
+          },
+          "Holders_Run": {
+            "label": "At løbe ind i dem vælter dem",
+            "hint": "Går man ind i en, støder man kun imod den."
+          },
+          "Holders_StandUp": {
+            "label": "De kan rejses op igen",
+            "hint": "Alle, der må bruge afspærring, kan rejse en væltet pæl eller kegle op igen."
+          },
+          "Placement_Posts": {
+            "label": "Pæle og kegler på åben grund",
+            "hint": "Sigter man på åben grund, stilles en pæl eller kegle op dér til at binde til. Fra: afspærring binder kun til vægge, stolper og træer."
+          },
+          "Placement_Chain": {
+            "label": "Fortsæt efter afbinding",
+            "hint": "Næste stykke starter, hvor det forrige sluttede, indtil Færdig."
+          },
+          "Access_OthersTapes": {
+            "label": "Tag andres afspærring ned",
+            "hint": "Fra: spillere tager kun afspærring ned, som de selv har sat op (admins alle)."
+          },
+          "Item_Enabled": {
+            "label": "Kræver en rulle politiafspærring",
+            "hint": "Man skal have afspærringsgenstanden i inventaret for at sætte op."
+          },
+          "Item_Consume": {
+            "label": "Bruger en rulle pr. stykke",
+            "hint": "Der tages én rulle for hvert stykke afspærring, der sættes op."
+          },
+          "Item_Refund": {
+            "label": "Giver rullen tilbage",
+            "hint": "Når ruller bruges op: tager man sin egen afspærring ned, får man rullen tilbage."
+          },
+          "Persist": {
+            "label": "Afspærring overlever genstart",
+            "hint": "Afspærring gemmes i data/tapes.json og kommer tilbage efter en genstart. Fra: ingen gør, og filen tømmes med det samme."
+          },
+          "PersistChoice": {
+            "label": "Spillere vælger pr. afspærring",
+            "hint": "Mens man sætter op (F) og i en afspærrings popup, siger spillerne, om den bliver gemt. Fra: al afspærring bliver gemt."
+          }
+        }
+      }
+    }
+  }
+}

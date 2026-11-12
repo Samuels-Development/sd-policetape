@@ -33,6 +33,12 @@
     "repaired": "Band wieder zusammengeknotet.",
     "not_kept": "Dieses Band verschwindet beim nächsten Neustart."
   },
+  "suggest": {
+    "place": "Absperrband anbringen",
+    "styles": "Wähle den Absperrband-Stil, mit dem du platzierst",
+    "studio": "Neue Absperrband-Stile erstellen",
+    "admin": "Admin-Menü für Absperrband"
+  },
   "ui": {
     "categories": {
       "all": "Alle",

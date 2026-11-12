@@ -3,7 +3,7 @@
 -- Who may do what is decided on the server, in configs/server/permissions.lua (which never ships
 -- to clients). This file only says which jobs and ACEs that file looks at by default.
 return {
-    Locale = 'en', -- en, nl, de, fr, es (locales/<Locale>.json); anything missing falls back to English
+    Locale = 'en', -- en, nl, de, fr, es, da (locales/<Locale>.json); anything missing falls back to English
     Debug = false, -- cyan [sd-policetape] diagnostic prints, client and server
     DebugPrints = false, -- the bridge's own (very verbose) prints
 
